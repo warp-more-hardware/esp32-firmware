@@ -342,9 +342,11 @@ void ENplus::setup_evse()
 //        logger.printfln("No EVSE bricklet found. Disabling EVSE support.");
 //        return;
 //    }
+    
+    
     evse_found = true;
 
-//    int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len, &logger);
+//    int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
 //    if(result != 0) {
 //        return;
 //    }
