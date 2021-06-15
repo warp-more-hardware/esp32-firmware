@@ -27,6 +27,7 @@
 #include "task_scheduler.h"
 #include "tools.h"
 #include "modules/sse/sse.h"
+#include "HardwareSerial.h"
 
 extern EventLog logger;
 
@@ -319,6 +320,20 @@ void ENplus::register_urls()
     });
 }
 
+#define PRIV_COMM_BUFFER_MAX_SIZE 1024
+byte PrivCommBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {'1'};
+unsigned long lastReadFromPrivComm;
+int PrivCommBufferPointer = 0;
+
+//void printHex8(uint8_t *data, uint8_t length) // prints 8-bit data as hex with leading zeroes
+//{
+//  char tmp[16];
+//  for (int i=0; i<length; i++) { 
+//    sprintf(tmp, "0x%.2X",data[i]); 
+//    Serial.print(tmp); Serial.print(" ");
+//  }
+//}
+
 void ENplus::loop()
 {
     static uint32_t last_check = 0;
@@ -333,6 +348,30 @@ void ENplus::loop()
         last_debug = millis();
         sse.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
     }
+
+  char tmp[16];
+  while (Serial2.available() > 0) {
+    lastReadFromPrivComm = millis();
+    PrivCommBufferPointer++;
+    PrivCommBuffer[PrivCommBufferPointer] = char(Serial2.read());
+    //logger.printfln("S");
+    sprintf(tmp, "0x%.2X",PrivCommBuffer[PrivCommBufferPointer]); 
+    Serial.print(tmp); Serial.print(" ");
+    //logger.printfln("%X", PrivCommBuffer[PrivCommBufferPointer]);
+  }
+  if ((PrivCommBufferPointer > 100) || (PrivCommBufferPointer > 0) && (millis() - lastReadFromPrivComm > 10)) {  // timeout
+    //UdpSniffResult.write(PrivCommBuffer, PrivCommBufferPointer + 1);
+    logger.printfln("Go and implement the print function to view the data I got.");
+    //replyIfTimeRequest();
+    PrivCommBufferPointer = 0;
+  }
+//  else if ((PrivCommBufferPointer > 4) && (PrivCommBuffer[PrivCommBufferPointer-3]==0xFA && PrivCommBuffer[PrivCommBufferPointer-2]==0x03 && PrivCommBuffer[PrivCommBufferPointer-1]==0x00 && PrivCommBuffer[PrivCommBufferPointer]==0x00)) {  // new command starting
+//    UdpSniffResult.beginPacket(host_custom, udpSniffPort);
+//    UdpSniffResult.write(PrivCommBuffer, PrivCommBufferPointer-4);
+//    UdpSniffResult.endPacket();
+//    replyIfTimeRequest();
+//    PrivCommBufferPointer = 4;
+//  }
 }
 
 void ENplus::setup_evse()
@@ -343,7 +382,9 @@ void ENplus::setup_evse()
 //        return;
 //    }
     
-    
+    Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
+    logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, 26, 27");
+
     evse_found = true;
 
 //    int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
