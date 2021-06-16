@@ -320,24 +320,50 @@ void ENplus::register_urls()
     });
 }
 
-#define PRIV_COMM_BUFFER_MAX_SIZE 1024
-byte PrivCommBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {'1'};
-unsigned long lastReadFromPrivComm;
-int PrivCommBufferPointer = 0;
-
 //void printHex8(uint8_t *data, uint8_t length) // prints 8-bit data as hex with leading zeroes
 //{
 //  char tmp[16];
-//  for (int i=0; i<length; i++) { 
-//    sprintf(tmp, "0x%.2X",data[i]); 
+//  for (int i=0; i<length; i++) {
+//    sprintf(tmp, "0x%.2X",data[i]);
 //    Serial.print(tmp); Serial.print(" ");
 //  }
 //}
+
+#define PRIV_COMM_BUFFER_MAX_SIZE 1024
+byte PrivCommRxBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {'1'};
+
+#define PRIVCOMM_MAGIC      0
+#define PRIVCOMM_VERSION    1
+#define PRIVCOMM_ADDR       2
+#define PRIVCOMM_CMD        3
+#define PRIVCOMM_SEQ        4
+#define PRIVCOMM_LEN        5
+#define PRIVCOMM_PAYLOAD    6
+#define PRIVCOMM_CRC        7
+
+String ENplus::get_hex_PrivComm_line(uint8_t *data, uint8_t len) {
+    char line[250] = {0};
+
+    for(uint32_t i = 0; i < len; i++) {
+        sprintf(line, "0x%.2X", data[i]); 
+    }
+    return String(line);
+}
 
 void ENplus::loop()
 {
     static uint32_t last_check = 0;
     static uint32_t last_debug = 0;
+    static uint32_t last_pcomm = 0;
+    uint8_t cmd;
+    uint8_t seq;
+    uint16_t len;
+    uint16_t crc;
+    static bool payload_to_read = true;
+    static byte PrivCommRxState = PRIVCOMM_MAGIC;
+    static int PrivCommRxBufferPointer = 0;
+    unsigned char ch;
+
     if(evse_found && !initialized && deadline_elapsed(last_check + 10000)) {
         last_check = millis();
         if(!is_in_bootloader(TF_E_TIMEOUT))
@@ -349,29 +375,90 @@ void ENplus::loop()
         sse.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
     }
 
-  char tmp[16];
-  while (Serial2.available() > 0) {
-    lastReadFromPrivComm = millis();
-    PrivCommBufferPointer++;
-    PrivCommBuffer[PrivCommBufferPointer] = char(Serial2.read());
-    //logger.printfln("S");
-    sprintf(tmp, "0x%.2X",PrivCommBuffer[PrivCommBufferPointer]); 
-    Serial.print(tmp); Serial.print(" ");
-    //logger.printfln("%X", PrivCommBuffer[PrivCommBufferPointer]);
-  }
-  if ((PrivCommBufferPointer > 100) || (PrivCommBufferPointer > 0) && (millis() - lastReadFromPrivComm > 10)) {  // timeout
-    //UdpSniffResult.write(PrivCommBuffer, PrivCommBufferPointer + 1);
-    logger.printfln("Go and implement the print function to view the data I got.");
+    if( Serial2.available() > 0 ) {
+        do {
+            ch = Serial2.read();
+            Serial.print(ch, HEX);
+            Serial.print(" ");
+            switch( PrivCommRxState ) {
+                // Magic Header (0xFA) Version (0x03) Address (0x0000) CMD (0x??) Seq No. (0x??) Length (0x????) Payload (0-1015) Checksum (crc16)
+                case PRIVCOMM_MAGIC:
+                    if(ch == 0xFA) {
+                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                        PrivCommRxState = PRIVCOMM_VERSION;
+                    } else {
+                        logger.printfln("PRIVCOMM ERR: out of sync byte: %.2X", ch);
+                    }
+                break;
+                case PRIVCOMM_VERSION:
+                    if(ch == 0x03) {
+                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                        PrivCommRxState = PRIVCOMM_ADDR;
+                    } else {
+                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Version %.2X.", ch);
+                        PrivCommRxState = PRIVCOMM_MAGIC;
+                    }
+                break;
+                case PRIVCOMM_ADDR:
+                    if(ch == 0x00) {
+                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                        if(PrivCommRxBufferPointer == 4) { // this was the second byte of the address, move on
+                            PrivCommRxState = PRIVCOMM_CMD;
+                        }
+                    } else {
+                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Address %.2X%.2X.", PrivCommRxBuffer[PrivCommRxBufferPointer-1], ch);
+                        PrivCommRxState = PRIVCOMM_MAGIC;
+                    }
+                break;
+                case PRIVCOMM_CMD:
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    PrivCommRxState = PRIVCOMM_SEQ;
+                    cmd = ch;
+                break;
+                case PRIVCOMM_SEQ:
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    PrivCommRxState = PRIVCOMM_LEN;
+                    seq = ch;
+                break;
+                case PRIVCOMM_LEN:
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    if(PrivCommRxBufferPointer == 8) { // this was the second byte of the length, move on
+                        PrivCommRxState = PRIVCOMM_PAYLOAD;
+                        len = (uint16_t)(PrivCommRxBuffer[7] << 8 | PrivCommRxBuffer[6]);
+                        //TODO sanity check 0 <= len <= 1015 ?
+                    }
+                break;
+                case PRIVCOMM_PAYLOAD:
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    if(PrivCommRxBufferPointer == len + 8) {
+                        //final byte of Payload received.
+                        // PROCESS it
+                        //should verify 16-bit CRC is correct to ensure alignment; need to see printed results
+                        //msgCRC = Get_CRC16_Check_Sum( (unsigned char *)PrivCommRxBuffer, 10, CRC_INIT );
+
+                        PrivCommRxState = PRIVCOMM_CRC;
+                    }
+                break;
+                case PRIVCOMM_CRC:
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    if(PrivCommRxBufferPointer == len + 10) {
+                        // check CRC
+                        crc = (uint16_t)(PrivCommRxBuffer[len + 9] << 8 | PrivCommRxBuffer[len + 8]);
+                        logger.printfln("\nPRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d)", cmd, len, seq, crc);
+                        // print header+payload as hex and ascii?
+                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, len, seq, crc, get_hex_PrivComm_line(PrivCommRxBuffer, len));
+                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, len, seq, crc, get_hex_PrivComm_line(PrivCommRxBuffer[8], len));
+                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, len, seq, crc, get_hex_PrivComm_line(PrivCommRxBuffer, len+10));
+                        PrivCommRxState = PRIVCOMM_MAGIC;
+                        PrivCommRxBufferPointer=0;
+                    }
+                break;
+            }//switch
+        } while( Serial2.available() > 0 );
+    }
+
+    ////[PRIV_COMM, 2014]: Rx(cmd_02 len:135) :  FA 03 00 00 02 01 7D 00 53 4E 31 30 30 35 32 31 30 31 31 39 33 35 37 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 24 D1 00 41 43 30 31 31 4B 2D 41 55 2D 32 35 00 00
     //replyIfTimeRequest();
-    PrivCommBufferPointer = 0;
-  }
-//  else if ((PrivCommBufferPointer > 4) && (PrivCommBuffer[PrivCommBufferPointer-3]==0xFA && PrivCommBuffer[PrivCommBufferPointer-2]==0x03 && PrivCommBuffer[PrivCommBufferPointer-1]==0x00 && PrivCommBuffer[PrivCommBufferPointer]==0x00)) {  // new command starting
-//    UdpSniffResult.beginPacket(host_custom, udpSniffPort);
-//    UdpSniffResult.write(PrivCommBuffer, PrivCommBufferPointer-4);
-//    UdpSniffResult.endPacket();
-//    replyIfTimeRequest();
-//    PrivCommBufferPointer = 4;
-//  }
 }
 
 void ENplus::setup_evse()
@@ -383,7 +470,8 @@ void ENplus::setup_evse()
 //    }
     
     Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
-    logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, 26, 27");
+    Serial2.setTimeout(90);
+    logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
 
     evse_found = true;
 

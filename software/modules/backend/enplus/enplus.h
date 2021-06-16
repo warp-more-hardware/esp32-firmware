@@ -51,6 +51,7 @@ private:
     bool wait_for_bootloader_mode(int mode);
     String get_evse_debug_header();
     String get_evse_debug_line();
+    String get_hex_PrivComm_line(uint8_t *data, uint8_t len);
 
     bool debug = false;
 
