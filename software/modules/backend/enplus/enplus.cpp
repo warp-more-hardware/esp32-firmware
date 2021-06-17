@@ -359,10 +359,10 @@ void ENplus::loop()
     uint8_t seq;
     uint16_t len;
     uint16_t crc;
-    static bool payload_to_read = true;
+    static bool cmd_to_process = false;
     static byte PrivCommRxState = PRIVCOMM_MAGIC;
     static int PrivCommRxBufferPointer = 0;
-    unsigned char ch;
+    byte rxByte;
 
     if(evse_found && !initialized && deadline_elapsed(last_check + 10000)) {
         last_check = millis();
@@ -375,90 +375,107 @@ void ENplus::loop()
         sse.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
     }
 
-    if( Serial2.available() > 0 ) {
+    if( Serial2.available() > 0 && !cmd_to_process) {
         do {
-            ch = Serial2.read();
-            Serial.print(ch, HEX);
+            rxByte = Serial2.read();
+            Serial.print(rxByte, HEX);
             Serial.print(" ");
             switch( PrivCommRxState ) {
                 // Magic Header (0xFA) Version (0x03) Address (0x0000) CMD (0x??) Seq No. (0x??) Length (0x????) Payload (0-1015) Checksum (crc16)
                 case PRIVCOMM_MAGIC:
-                    if(ch == 0xFA) {
-                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    if(rxByte == 0xFA) {
+                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                         PrivCommRxState = PRIVCOMM_VERSION;
                     } else {
-                        logger.printfln("PRIVCOMM ERR: out of sync byte: %.2X", ch);
+                        logger.printfln("PRIVCOMM ERR: out of sync byte: %.2X", rxByte);
                     }
-                break;
+                    break;
                 case PRIVCOMM_VERSION:
-                    if(ch == 0x03) {
-                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    if(rxByte == 0x03) {
+                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                         PrivCommRxState = PRIVCOMM_ADDR;
                     } else {
-                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Version %.2X.", ch);
+                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Version %.2X.", rxByte);
                         PrivCommRxState = PRIVCOMM_MAGIC;
                     }
-                break;
+                    break;
                 case PRIVCOMM_ADDR:
-                    if(ch == 0x00) {
-                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    if(rxByte == 0x00) {
+                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                         if(PrivCommRxBufferPointer == 4) { // this was the second byte of the address, move on
                             PrivCommRxState = PRIVCOMM_CMD;
                         }
                     } else {
-                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Address %.2X%.2X.", PrivCommRxBuffer[PrivCommRxBufferPointer-1], ch);
+                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Address %.2X%.2X.", PrivCommRxBuffer[PrivCommRxBufferPointer-1], rxByte);
                         PrivCommRxState = PRIVCOMM_MAGIC;
                     }
-                break;
+                    break;
                 case PRIVCOMM_CMD:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     PrivCommRxState = PRIVCOMM_SEQ;
-                    cmd = ch;
-                break;
+                    cmd = rxByte;
+                    break;
                 case PRIVCOMM_SEQ:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     PrivCommRxState = PRIVCOMM_LEN;
-                    seq = ch;
-                break;
+                    seq = rxByte;
+                    break;
                 case PRIVCOMM_LEN:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     if(PrivCommRxBufferPointer == 8) { // this was the second byte of the length, move on
                         PrivCommRxState = PRIVCOMM_PAYLOAD;
                         len = (uint16_t)(PrivCommRxBuffer[7] << 8 | PrivCommRxBuffer[6]);
                         //TODO sanity check 0 <= len <= 1015 ?
                     }
-                break;
+                    break;
                 case PRIVCOMM_PAYLOAD:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     if(PrivCommRxBufferPointer == len + 8) {
                         //final byte of Payload received.
-                        // PROCESS it
                         //should verify 16-bit CRC is correct to ensure alignment; need to see printed results
                         //msgCRC = Get_CRC16_Check_Sum( (unsigned char *)PrivCommRxBuffer, 10, CRC_INIT );
 
                         PrivCommRxState = PRIVCOMM_CRC;
                     }
-                break;
+                    break;
                 case PRIVCOMM_CRC:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = ch;
+                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     if(PrivCommRxBufferPointer == len + 10) {
-                        // check CRC
                         crc = (uint16_t)(PrivCommRxBuffer[len + 9] << 8 | PrivCommRxBuffer[len + 8]);
-                        logger.printfln("\nPRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d)", cmd, len, seq, crc);
+                        logger.printfln("\r\nPRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d)", cmd, seq, len, crc);
                         // print header+payload as hex and ascii?
-                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, len, seq, crc, get_hex_PrivComm_line(PrivCommRxBuffer, len));
-                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, len, seq, crc, get_hex_PrivComm_line(PrivCommRxBuffer[8], len));
-                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, len, seq, crc, get_hex_PrivComm_line(PrivCommRxBuffer, len+10));
+                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, seq, len, crc, get_hex_PrivComm_line(PrivCommRxBuffer, len));
+                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, seq, len, crc, get_hex_PrivComm_line(PrivCommRxBuffer[8], len));
+                        //logger.printfln("PRIVCOMM: Rx(cmd_%.2X seq:%d len:%d crc:%d payload: %s) : ", cmd, seq, len, crc, get_hex_PrivComm_line(PrivCommRxBuffer, len+10));
                         PrivCommRxState = PRIVCOMM_MAGIC;
                         PrivCommRxBufferPointer=0;
+                        // check CRC
+                        // PROCESS it
+                        cmd_to_process = true;
                     }
-                break;
-            }//switch
+                    break;
+            }//switch read packet
         } while( Serial2.available() > 0 );
     }
 
-    ////[PRIV_COMM, 2014]: Rx(cmd_02 len:135) :  FA 03 00 00 02 01 7D 00 53 4E 31 30 30 35 32 31 30 31 31 39 33 35 37 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 24 D1 00 41 43 30 31 31 4B 2D 41 55 2D 32 35 00 00
-    //replyIfTimeRequest();
+    if(cmd_to_process) {
+        switch( cmd ) {
+            case 0x04: // time request / ESP32-GD32 communication heartbeat
+                // && PrivCommRxBuffer[9] == 0x01
+                // && PrivCommRxBuffer[10] == 0x00
+                // && PrivCommRxBuffer[11] == 0x00
+                // && PrivCommRxBuffer[12] == 0x00
+                // && PrivCommRxBuffer[13] == 0x00
+                // && PrivCommRxBuffer[14] == 0x00
+                //sendTime(1);
+                logger.printfln("PRIVCOMM: Tx(cmd_%.2X seq:%d) I should have answered.", cmd, seq);
+                break;
+            default:
+                logger.printfln("PRIVCOMM: (cmd_%.2X seq:%d) I don't know what to do about it.", cmd, seq);
+                break;
+        }//switch process cmd
+        cmd_to_process = false;
+    }
 }
 
 void ENplus::setup_evse()
