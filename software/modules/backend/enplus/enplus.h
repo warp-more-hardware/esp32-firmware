@@ -51,12 +51,21 @@ private:
     bool wait_for_bootloader_mode(int mode);
     String get_evse_debug_header();
     String get_evse_debug_line();
-    String get_hex_PrivComm_line(uint8_t *data, uint8_t len);
+    String get_hex_privcomm_line(byte *data);
+    void PrivCommSend(byte cmd, uint16_t datasize, byte *data);
+    void sendCommand(byte *data, int datasize);
+    void sendTimeLong (void);
+
+    #define PRIV_COMM_BUFFER_MAX_SIZE 1024
+    byte PrivCommRxBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {'0'};
+    byte PrivCommTxBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {0xFA, 0x03, 0x00, 0x00}; // Magic byte, Version, 16 bit Address - always the same
+    char PrivCommHexBuffer[PRIV_COMM_BUFFER_MAX_SIZE*3] = {'0'};
 
     bool debug = false;
 
     int bs_evse_start_charging(TF_EVSE *evse);
     int bs_evse_stop_charging(TF_EVSE *evse);
+    int bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime);
 
     Config evse_state;
     Config evse_hardware_configuration;
@@ -71,6 +80,7 @@ private:
     Config evse_managed_update;
     Config evse_managed_current;
     Config evse_user_calibration;
+    Config evse_privcomm;
 
     TF_EVSE evse;
 };
