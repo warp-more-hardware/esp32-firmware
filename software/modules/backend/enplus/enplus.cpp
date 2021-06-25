@@ -203,7 +203,6 @@ void ENplus::PrivCommSend(byte cmd, uint16_t datasize, byte *data) {
     data[datasize+8] = crc & 0xFF;
     data[datasize+9] = crc >> 8;
 
-    //Serial.println();
     get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
     logger.printfln("PRIVCOMM: Tx cmd_%.2X seq:%d, len:%d, crc:%.4X", cmd, data[5], datasize, crc);
   
@@ -211,24 +210,25 @@ void ENplus::PrivCommSend(byte cmd, uint16_t datasize, byte *data) {
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 }
 
-//void sendAckCommand (byte command, byte sequenceNumber)
-//{
-//  sendCommandBuffer[0] = 0xFA;
-//  sendCommandBuffer[1] = 0x03;
-//  sendCommandBuffer[2] = 0x00;
-//  sendCommandBuffer[3] = 0x00;
-//  sendCommandBuffer[4] = command ^ 0xA0;  // complement
-//  sendCommandBuffer[5] = sequenceNumber;
-//  sendCommandBuffer[6] = 7;
-//  sendCommandBuffer[7] = 0;
-//  sendCommandBuffer[8] = 0;
-//
-//  crc(sendCommandBuffer);
-//
-//  Serial2.write(sendCommandBuffer, 10);
-//}
-//
-//
+void ENplus::PrivCommAck(byte cmd, byte sequenceNumber, byte *data) {
+    // the first 4 bytes never change and should be set already
+    data[4] = cmd ^ 0xA0;  // complement
+    data[5] = sequenceNumber;
+    data[6] = 1; //len
+    data[7] = 0; //len
+    data[8] = 0; //payload
+    uint16_t crc = crc16_modbus(data, 9);
+    data[9] = crc & 0xFF;
+    data[10] = crc >> 8;
+
+    get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
+    logger.printfln("PRIVCOMM: Tx cmd_%.2X seq:%d, crc:%.4X", cmd, data[5], crc);
+  
+    Serial2.write(data, 10);
+    evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
+}
+
+
 //void setChargingCurrent (byte current)
 //{
 //  time_t t=now();     // get current time
@@ -711,6 +711,17 @@ void ENplus::loop()
 
     if(cmd_to_process) {
         switch( cmd ) {
+            case 0x02: // Serial number, Version
+                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%d  Ack Serial number and Version.", cmd, seq);
+		PrivCommAck(cmd, seq, PrivCommTxBuffer);
+		// TODO extract relevant data
+//                int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
+//                if(result != 0) {
+//                    return;
+//                }
+                evse_found = true;
+                initialized = true;
+                break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
                 logger.printfln("PRIVCOMM:    cmd_%.2X seq:%d  Answer time request / ESP32-GD32 communication heartbeat.", cmd, seq);
                 // && PrivCommRxBuffer[9] == 0x01
@@ -739,31 +750,31 @@ void ENplus::loop()
         cmd_to_process = false;
     }
  
-    // init command sequencer
-    if (millis() > nextMillis) {
-        switch (nextCommand){
-            case 1: sendCommand(Init1, sizeof(Init1)); break;
-            case 2: sendCommand(Init2, sizeof(Init2)); break;
-            case 3: sendCommand(Init3, sizeof(Init3)); break;
-            case 4: sendCommand(Init4, sizeof(Init4)); break;
-            case 5: sendCommand(Init5, sizeof(Init5)); break;
-            case 6: sendCommand(Init6, sizeof(Init6)); break;
-            case 7: sendCommand(Init7, sizeof(Init7)); break;
-            case 8: sendCommand(Init8, sizeof(Init8)); break;
-            case 9: sendCommand(Init9, sizeof(Init9)); break;
-            case 10: sendCommand(Init10, sizeof(Init10)); break;
-            case 11: sendCommand(Init11, sizeof(Init11)); break;
-            case 12: sendCommand(Init12, sizeof(Init12)); break;
-            case 13: sendCommand(Init12, sizeof(Init12)); break;
-            case 14: sendCommand(Init12, sizeof(Init12)); break;
-            case 15: sendCommand(Init12, sizeof(Init12)); break;
-            case 16: sendTimeLong(); break;
-            case 17: sendCommand(Init13, sizeof(Init13)); break;
-            case 18: sendCommand(Init14, sizeof(Init14)); break;
-        }
-        if (nextCommand < 19) nextCommand++;
-        nextMillis += 1000;
-    }
+//    // init command sequencer
+//    if (millis() > nextMillis) {
+//        switch (nextCommand){
+//            case 1: sendCommand(Init1, sizeof(Init1)); break;
+//            case 2: sendCommand(Init2, sizeof(Init2)); break;
+//            case 3: sendCommand(Init3, sizeof(Init3)); break;
+//            case 4: sendCommand(Init4, sizeof(Init4)); break;
+//            case 5: sendCommand(Init5, sizeof(Init5)); break;
+//            case 6: sendCommand(Init6, sizeof(Init6)); break;
+//            case 7: sendCommand(Init7, sizeof(Init7)); break;
+//            case 8: sendCommand(Init8, sizeof(Init8)); break;
+//            case 9: sendCommand(Init9, sizeof(Init9)); break;
+//            case 10: sendCommand(Init10, sizeof(Init10)); break;
+//            case 11: sendCommand(Init11, sizeof(Init11)); break;
+//            case 12: sendCommand(Init12, sizeof(Init12)); break;
+//            case 13: sendCommand(Init12, sizeof(Init12)); break;
+//            case 14: sendCommand(Init12, sizeof(Init12)); break;
+//            case 15: sendCommand(Init12, sizeof(Init12)); break;
+//            case 16: sendTimeLong(); break;
+//            case 17: sendCommand(Init13, sizeof(Init13)); break;
+//            case 18: sendCommand(Init14, sizeof(Init14)); break;
+//        }
+//        if (nextCommand < 19) nextCommand++;
+//        nextMillis += 1000;
+//    }
 
 }
 
@@ -779,12 +790,22 @@ void ENplus::setup_evse()
     Serial2.setTimeout(90);
     logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
 
-    evse_found = true;
+//W (1970-01-01 00:23:18) [PRIV_COMM, 1764]: Tx(cmd_AA len:16) :  FA 03 00 00 AA 07 06 00 18 08 02 00 1E 00 95 80
+//W (1970-01-01 00:23:18) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 08 05 00 18 12 01 00 03 BA 45
+//W (2021-06-12 18:06:03) [PRIV_COMM, 1764]: Tx(cmd_AA len:20) :  FA 03 00 00 AA 09 0A 00 18 02 06 00 15 06 0C 12 06 03 3C 66
+//W (2021-06-12 18:06:03) [EN_WSS, 677]: send[0:148] [2,"2","DataTransfer",{"vendorId":"EN+","messageId":"gatewayInfo","data":"{\"SN\":\"ESP32GATEWAY001\",\"fwVer\":\"V3.2.418\",\"gateCode\":\"91\"}"}]
+//W (2021-06-12 18:06:03) [EN_WSS, 712]: recv[0:144] [2,"1320fa60-3986-4124-97fe-ab101fa0a7e9","DataTransfer",{"data":"{\"mode\":\"normal\"}","messageId":"cpStartTransactionMode","vendorId":"EN+"}]
+//W (2021-06-12 18:06:03) [EN_WSS, 712]: recv[0:144] [2,"1320fa60-3986-4124-97fe-ab101fa0a7e9","DataTransfer",{"data
+//I (2021-06-12 18:06:03) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30  (=1E)    
 
-//    int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
-//    if(result != 0) {
-//        return;
-//    }
+    //ctrl_cmd set heart beat time out
+    PrivCommTxBuffer[PayloadStart + 0] = 0x18;
+    PrivCommTxBuffer[PayloadStart + 1] = 0x08;
+    PrivCommTxBuffer[PayloadStart + 2] = 0x02;
+    PrivCommTxBuffer[PayloadStart + 3] = 0x00;
+    PrivCommTxBuffer[PayloadStart + 4] = 0x1E; // 1E = 30 sec hb timeout
+    PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
+    PrivCommSend(0xAA, 6, PrivCommTxBuffer);
 
     int result = tf_evse_create(&evse, uid, &hal);
 //    if(result != TF_E_OK) {
@@ -808,7 +829,6 @@ void ENplus::setup_evse()
 //    }
 
     logger.printfln("Ignoring all the errors initializing the evse. Continue.");
-    initialized = true;
 }
 
 void ENplus::update_evse_low_level_state() {

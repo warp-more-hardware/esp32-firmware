@@ -53,6 +53,7 @@ private:
     String get_evse_debug_line();
     String get_hex_privcomm_line(byte *data);
     void PrivCommSend(byte cmd, uint16_t datasize, byte *data);
+    void PrivCommAck(byte cmd, byte sequenceNumber, byte *data);
     void sendCommand(byte *data, int datasize);
     void sendTimeLong (void);
 
