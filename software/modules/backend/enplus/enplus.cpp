@@ -96,8 +96,8 @@ byte Init9[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x7B, 0x89};
 byte Init10[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x3B, 0x9C};
 byte Init11[] = {0xAA, 0x18, 0x2A, 0x00, 0x00};
 byte Init12[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03}; // ?   x mal
-byte Init13[] = {0xA2, 0x00};
-byte Init14[] = {0xA3, 0x18, 0x02, 0x06, 0x00, 0x15, 0x06, 0x0A, 0x07, 0x08, 0x26};
+//ack //byte Init13[] = {0xA2, 0x00};
+//ack TODO //byte Init14[] = {0xA3, 0x18, 0x02, 0x06, 0x00, 0x15, 0x06, 0x0A, 0x07, 0x08, 0x26};
 byte Init15[] = {0xAA, 0x18, 0x09, 0x01, 0x00, 0x00};
 
 byte StartCharging[] = {0xA7, 0x36, 0x32, 0x33, 0x33, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -614,8 +614,8 @@ void ENplus::loop()
     if( Serial2.available() > 0 && !cmd_to_process) {
         do {
             rxByte = Serial2.read();
-//            Serial.print(rxByte, HEX);
-//            Serial.print(" ");
+            Serial.print(rxByte, HEX);
+            Serial.print(" ");
             switch( PrivCommRxState ) {
                 // Magic Header (0xFA) Version (0x03) Address (0x0000) CMD (0x??) Seq No. (0x??) Length (0x????) Payload (0-1015) Checksum (crc16)
                 case PRIVCOMM_MAGIC:
@@ -674,7 +674,7 @@ void ENplus::loop()
                 case PRIVCOMM_CRC:
                     PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     if(PrivCommRxBufferPointer == len + 10) {
-//            Serial.println();
+            Serial.println();
                         PrivCommRxState = PRIVCOMM_MAGIC;
                         PrivCommRxBufferPointer=0;
                         get_hex_privcomm_line(PrivCommRxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
@@ -692,7 +692,7 @@ void ENplus::loop()
                     }
                     break;
             }//switch read packet
-        } while( Serial2.available() > 0 );
+        } while((Serial2.available() > 0) && !cmd_to_process); // one command at a time
     }
 
     if(cmd_to_process) {
@@ -710,11 +710,9 @@ void ENplus::loop()
     PrivCommTxBuffer[PayloadStart + 1] = 0x08;
     PrivCommTxBuffer[PayloadStart + 2] = 0x02;
     PrivCommTxBuffer[PayloadStart + 3] = 0x00;
-    PrivCommTxBuffer[PayloadStart + 4] = 0xC8; // 1E = 30 sec hb timeout, C8 = 200 sec
+    PrivCommTxBuffer[PayloadStart + 4] = 0x1E; // 1E = 30 sec hb timeout, C8 = 200 sec
     PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
     PrivCommSend(0xAA, 6, PrivCommTxBuffer);
-                evse_found = true;
-                initialized = true;
                 break;
             case 0x03:
                 logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  status:%.2X.", cmd, seq, PrivCommRxBuffer[9]);
@@ -728,9 +726,12 @@ void ENplus::loop()
                   case 7: logger.printfln("            (Reserved)"); break;
                   case 8: logger.printfln("            (Unavailable)"); break;
                   case 9: logger.printfln("            Fault (charger in fault condition)"); break;
+                }
 //6948        Buffer: FA 03 00 00 03 02 0E 00 00 01 01 00 00 00 00 00 00 00 00 00 04 00 CE C5
 //6949        PRIVCOMM: Rx cmd_03 seq:02 len:14 crc:C5CE
-                }
+                PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
+//[PRIV_COMM, 1859]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 08 07 00 10 15 06 03 10 2C 1B 15 92
+//[PRIV_COMM, 1859]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 0A 07 00 10 15 06 03 10 2C 1C F5 9A
                 break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
                 logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  Answer time request / ESP32-GD32 communication heartbeat.", cmd, seq);
@@ -829,15 +830,42 @@ void ENplus::loop()
 
 void ENplus::setup_evse()
 {
-    char uid[7] = {0};
-//    if (!find_uid_by_did(&hal, TF_EVSE_DEVICE_IDENTIFIER, uid)) {
-//        logger.printfln("No EVSE bricklet found. Disabling EVSE support.");
-//        return;
-//    }
-    
     Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
     Serial2.setTimeout(90);
     logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
+
+    //ctrl_cmd set heart beat time out
+    PrivCommTxBuffer[PayloadStart + 0] = 0x18;
+    PrivCommTxBuffer[PayloadStart + 1] = 0x08;
+    PrivCommTxBuffer[PayloadStart + 2] = 0x02;
+    PrivCommTxBuffer[PayloadStart + 3] = 0x00;
+    PrivCommTxBuffer[PayloadStart + 4] = 0xC8; // 1E = 30 sec hb timeout, C8 = 200 sec
+    PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
+    PrivCommSend(0xAA, 6, PrivCommTxBuffer);
+
+    do { // wait for the first PRIVCOMM signal to decide if we have a GD chip to talk to
+        logger.printfln("wait for PrivComm");
+        if (Serial2.available() == 0) { delay(250); }
+    } while(Serial2.available() == 0);
+
+    logger.printfln("EN+ GD EVSE found. Enabling EVSE support.");
+    evse_found = true;
+
+    // TODO start: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
+    switch (timeStatus()){
+        case timeNotSet:
+            logger.printfln("the time has never been set, the clock started on Jan 1, 1970");
+            break;
+        case timeNeedsSync:
+            logger.printfln("the time had been set but a sync attempt did not succeed");
+            break;
+        case timeSet:
+            logger.printfln("the time is set and is synced");
+            break;
+    }
+    logger.printfln("the time is %d", now());
+    logger.printfln("the now() call was not blocking");
+    // TODO end: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
 
 //W (1970-01-01 00:23:18) [PRIV_COMM, 1764]: Tx(cmd_AA len:16) :  FA 03 00 00 AA 07 06 00 18 08 02 00 1E 00 95 80
 //W (1970-01-01 00:23:18) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 08 05 00 18 12 01 00 03 BA 45
@@ -847,15 +875,7 @@ void ENplus::setup_evse()
 //W (2021-06-12 18:06:03) [EN_WSS, 712]: recv[0:144] [2,"1320fa60-3986-4124-97fe-ab101fa0a7e9","DataTransfer",{"data
 //I (2021-06-12 18:06:03) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30  (=1E)    
 
-    //ctrl_cmd set heart beat time out
-    PrivCommTxBuffer[PayloadStart + 0] = 0x18;
-    PrivCommTxBuffer[PayloadStart + 1] = 0x08;
-    PrivCommTxBuffer[PayloadStart + 2] = 0x02;
-    PrivCommTxBuffer[PayloadStart + 3] = 0x00;
-    PrivCommTxBuffer[PayloadStart + 4] = 0xC8; // 1E = 30 sec hb timeout, C8 = 200 sec
-    PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
-    //PrivCommSend(0xAA, 6, PrivCommTxBuffer);
-
+    char uid[7] = {0}; // put SN here?
     int result = tf_evse_create(&evse, uid, &hal);
 //    if(result != TF_E_OK) {
 //        logger.printfln("Failed to initialize EVSE bricklet. Disabling EVSE support.");
@@ -877,7 +897,7 @@ void ENplus::setup_evse()
         evse_hardware_configuration.get("has_lock_switch")->updateBool(has_lock_switch);
 //    }
 
-    logger.printfln("Ignoring all the errors initializing the evse. Continue.");
+      initialized = true;
 }
 
 void ENplus::update_evse_low_level_state() {
