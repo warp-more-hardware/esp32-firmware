@@ -177,15 +177,15 @@ void ENplus::sendCommand(byte *data, int datasize) {
         PrivCommTxBuffer[i+7] = data[i];
     }
 
-    uint16_t crc = crc16_modbus(PrivCommTxBuffer, datasize + 8);
+    uint16_t crc = crc16_modbus(PrivCommTxBuffer, datasize + 7);
 
-    PrivCommTxBuffer[datasize+8] = crc & 0xFF;
-    PrivCommTxBuffer[datasize+9] = crc >> 8;
+    PrivCommTxBuffer[datasize+7] = crc & 0xFF;
+    PrivCommTxBuffer[datasize+8] = crc >> 8;
 
     get_hex_privcomm_line(PrivCommTxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
-    logger.printfln("privcomm: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", PrivCommTxBuffer[4], PrivCommTxBuffer[5], datasize+10, crc);
+    logger.printfln("privcomm: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", PrivCommTxBuffer[4], PrivCommTxBuffer[5], datasize+9, crc);
   
-    Serial2.write(PrivCommTxBuffer, datasize + 10);
+    Serial2.write(PrivCommTxBuffer, datasize + 9);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 
     PrivCommTxBuffer[5]++; // increment sequence number
@@ -885,7 +885,7 @@ void ENplus::setup_evse()
     PrivCommTxBuffer[PayloadStart + 1] = 0x08;
     PrivCommTxBuffer[PayloadStart + 2] = 0x02;
     PrivCommTxBuffer[PayloadStart + 3] = 0x00;
-    PrivCommTxBuffer[PayloadStart + 4] = 0xC8; // 1E = 30 sec hb timeout, C8 = 200 sec
+    PrivCommTxBuffer[PayloadStart + 4] = 0x1E; // 1E = 30 sec hb timeout, C8 = 200 sec
     PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
     PrivCommSend(0xAA, 6, PrivCommTxBuffer);
 
