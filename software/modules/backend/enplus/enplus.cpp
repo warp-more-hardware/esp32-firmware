@@ -892,7 +892,7 @@ void ENplus::setup_evse()
     do { // wait for the first PRIVCOMM signal to decide if we have a GD chip to talk to
         logger.printfln("wait for PrivComm");
         if (Serial2.available() == 0) { delay(250); }
-    } while(Serial2.available() == 0 && millis()<10000)); // TODO disable EVSE in case of no show
+    } while(Serial2.available() == 0 && millis()<10000); // TODO disable EVSE in case of no show
 
     logger.printfln("EN+ GD EVSE found. Enabling EVSE support.");
     evse_found = true;
