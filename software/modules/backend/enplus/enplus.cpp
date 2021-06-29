@@ -75,12 +75,25 @@ static const uint16_t crc16_modbus_table[] = {
        0X8201, 0X42C0, 0X4380, 0X8341, 0X4100, 0X81C1, 0X8081, 0X4040
 };
 
+// evse GD status strings
+    const char *cmd_03_status[] = {
+       "undefined",
+       "Available (not engaged)",
+       "Preparing (engaged, not started)",
+       "Charging (charging ongoing, power output)",
+       "Suspended by charger (started but no power available)",
+       "Suspended by EV (power available but waiting for the EV response)",
+       "Finishing, charging acomplished (RFID stop or EMS control stop",
+       "(Reserved)",
+       "(Unavailable)",
+       "Fault (charger in fault condition)",
+    };
 
 // Charging profile:
-// 10A ESP> W (2021-06-06 11:05:10) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 1D 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 06 0B 05 0A 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 CE 75  
-// 12A ESP> W (2021-06-03 18:37:19) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 19 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 03 12 25 14 00 00 00 00 0C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 BF 11  
-// 11A ESP> W (2021-06-04 08:07:58) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 39 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 04 08 07 32 00 00 00 00 0B 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 3A 0C  
-// 
+// 10A ESP> W (2021-06-06 11:05:10) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 1D 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 06 0B 05 0A 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 CE 75
+// 12A ESP> W (2021-06-03 18:37:19) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 19 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 03 12 25 14 00 00 00 00 0C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 BF 11
+// 11A ESP> W (2021-06-04 08:07:58) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 39 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 04 08 07 32 00 00 00 00 0B 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 3A 0C
+//
 
 // Commands
 // First byte = command code, then payload bytes, no crc bytes
@@ -184,7 +197,7 @@ void ENplus::sendCommand(byte *data, int datasize) {
 
     get_hex_privcomm_line(PrivCommTxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
     logger.printfln("privcomm: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", PrivCommTxBuffer[4], PrivCommTxBuffer[5], datasize+9, crc);
-  
+
     Serial2.write(PrivCommTxBuffer, datasize + 9);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 
@@ -208,7 +221,7 @@ void ENplus::PrivCommSend(byte cmd, uint16_t datasize, byte *data) {
 
     get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
     logger.printfln("PRIVCOMM: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", cmd, data[5], datasize, crc);
-  
+
     Serial2.write(data, datasize + 10);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 }
@@ -225,7 +238,7 @@ void ENplus::PrivCommAck(byte cmd, byte *data) {
 
     get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
     logger.printfln("PRIV ack: Tx cmd_%.2X seq:%.2X, crc:%.4X", data[4], data[5], crc);
-  
+
     Serial2.write(data, 11);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 }
@@ -616,7 +629,6 @@ void ENplus::loop()
     static byte PrivCommRxState = PRIVCOMM_MAGIC;
     static int PrivCommRxBufferPointer = 0;
     byte rxByte;
-    static String s = "";
 
     if(evse_found && !initialized && deadline_elapsed(last_check + 10000)) {
         last_check = millis();
@@ -632,13 +644,14 @@ void ENplus::loop()
     if( Serial2.available() > 0 && !cmd_to_process) {
         do {
             rxByte = Serial2.read();
+            PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
             Serial.print(rxByte, HEX);
             Serial.print(" ");
             switch( PrivCommRxState ) {
                 // Magic Header (0xFA) Version (0x03) Address (0x0000) CMD (0x??) Seq No. (0x??) Length (0x????) Payload (0-1015) Checksum (crc16)
                 case PRIVCOMM_MAGIC:
+                    PrivCommRxBufferPointer=1;
                     if(rxByte == 0xFA) {
-                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                         PrivCommRxState = PRIVCOMM_VERSION;
                     } else {
                         logger.printfln("PRIVCOMM ERR: out of sync byte: %.2X", rxByte);
@@ -646,7 +659,6 @@ void ENplus::loop()
                     break;
                 case PRIVCOMM_VERSION:
                     if(rxByte == 0x03) {
-                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                         PrivCommRxState = PRIVCOMM_ADDR;
                     } else {
                         logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Version %.2X.", rxByte);
@@ -655,46 +667,54 @@ void ENplus::loop()
                     break;
                 case PRIVCOMM_ADDR:
                     if(rxByte == 0x00) {
-                        PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                         if(PrivCommRxBufferPointer == 4) { // this was the second byte of the address, move on
                             PrivCommRxState = PRIVCOMM_CMD;
                         }
                     } else {
-                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Address %.2X%.2X.", PrivCommRxBuffer[PrivCommRxBufferPointer-1], rxByte);
+                        logger.printfln("PRIVCOMM ERR: got Rx Packet with wrong Address %.2X%.2X. PrivCommRxBufferPointer: %d", PrivCommRxBuffer[2], PrivCommRxBuffer[3], PrivCommRxBufferPointer);
                         PrivCommRxState = PRIVCOMM_MAGIC;
                     }
                     break;
                 case PRIVCOMM_CMD:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     PrivCommRxState = PRIVCOMM_SEQ;
                     cmd = rxByte;
                     break;
                 case PRIVCOMM_SEQ:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     PrivCommRxState = PRIVCOMM_LEN;
                     seq = rxByte;
                     PrivCommTxBuffer[5] = seq;
                     break;
                 case PRIVCOMM_LEN:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     if(PrivCommRxBufferPointer == 8) { // this was the second byte of the length, move on
                         PrivCommRxState = PRIVCOMM_PAYLOAD;
                         len = (uint16_t)(PrivCommRxBuffer[7] << 8 | PrivCommRxBuffer[6]);
+                        //logger.printfln("PRIVCOMM INFO: len: %d PrivCommRxBufferPointer: %d", len, PrivCommRxBufferPointer);
                     }
                     break;
                 case PRIVCOMM_PAYLOAD:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     if(PrivCommRxBufferPointer == len + 8) {
                         //final byte of Payload received.
                         PrivCommRxState = PRIVCOMM_CRC;
+                    } else if(cmd == 0x09) {
+                        // this is an ugly hack to deal with non conforming 0x09 "upload log" packets
+                        // cmd09 messeges are always too short and with no crc??? wtf?
+                        // hopefully there are no more packets like this, or enough to recognize a pattern
+                        if(PrivCommRxBuffer[PrivCommRxBufferPointer-4] == 0xFA &&
+                           PrivCommRxBuffer[PrivCommRxBufferPointer-3] == 0x03 &&
+                           PrivCommRxBuffer[PrivCommRxBufferPointer-2] == 0x00 &&
+                           PrivCommRxBuffer[PrivCommRxBufferPointer-1] == 0x00) {
+
+                            logger.printfln("PRIVCOMM BUG: process the next command albeit the last one was not finished. Buggy! cmd:%.2X len:%d cut off:%d", cmd, len, PrivCommRxBufferPointer-4);
+                            PrivCommRxState = PRIVCOMM_CMD;
+                            PrivCommRxBufferPointer = 4;
+                            cmd_to_process = true;
+                        }
                     }
                     break;
                 case PRIVCOMM_CRC:
-                    PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
                     if(PrivCommRxBufferPointer == len + 10) {
             Serial.println();
                         PrivCommRxState = PRIVCOMM_MAGIC;
-                        PrivCommRxBufferPointer=0;
                         get_hex_privcomm_line(PrivCommRxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
                         crc = (uint16_t)(PrivCommRxBuffer[len + 9] << 8 | PrivCommRxBuffer[len + 8]);
                         uint16_t checksum = crc16_modbus(PrivCommRxBuffer, len+8);
@@ -710,7 +730,7 @@ void ENplus::loop()
                     }
                     break;
             }//switch read packet
-        } while((Serial2.available() > 0) && !cmd_to_process); // one command at a time
+        } while((Serial2.available() > 0) && !cmd_to_process && PrivCommRxBufferPointer<sizeof(PrivCommRxBuffer)/sizeof(PrivCommRxBuffer[0])); // one command at a time
     }
 
     if(cmd_to_process) {
@@ -736,43 +756,34 @@ void ENplus::loop()
                 switch (PrivCommRxBuffer[9]) { // status
                     // TODO adapt to EN+ states in web interface
                     case 1:
-                        s = "Available (not engaged)";
                         evse_state.get("iec61851_state")->updateUint(0);
                         break;
                     case 2:
-                        s = "Preparing (engaged, not started)";
                         evse_state.get("iec61851_state")->updateUint(1);
                         break;
                     case 3:
-                        s = "Charging (charging ongoing, power output)";
                         evse_state.get("iec61851_state")->updateUint(2);
                         break;
                     case 4:
-                        s = "Suspended by charger (started but no power available)";
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
                     case 5:
-                        s = "Suspended by EV (power available but waiting for the EV response)";
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
                     case 6:
-                        s = "Finishing, charging acomplished (RFID stop or EMS control stop";
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
                     case 7:
-                        s = "(Reserved)";
                         evse_state.get("iec61851_state")->updateUint(3);
                         break;
                     case 8:
-                        s = "(Unavailable)";
                         evse_state.get("iec61851_state")->updateUint(3);
                         break;
                     case 9:
-                        s = "Fault (charger in fault condition)";
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
                 }
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, PrivCommRxBuffer[9], String(s));
+                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, PrivCommRxBuffer[9], cmd_03_status[PrivCommRxBuffer[9]]);
 //6948        Buffer: FA 03 00 00 03 02 0E 00 00 01 01 00 00 00 00 00 00 00 00 00 04 00 CE C5
 //6949        PRIVCOMM: Rx cmd_03 seq:02 len:14 crc:C5CE
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
@@ -827,7 +838,7 @@ void ENplus::loop()
                   logger.printfln("RFID Card %s", rfid);
                 }
                 break;
-            case 0x09: 
+            case 0x09:
                 logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  Ack.", cmd, seq);
                 //sendCommand(Ack09, sizeof(Ack09), receiveSequence);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA9RecordAck
@@ -845,7 +856,7 @@ void ENplus::loop()
         }//switch process cmd
         cmd_to_process = false;
     }
- 
+
 //    // init command sequencer
 //    if (millis() > nextMillis) {
 //        switch (nextCommand){
@@ -919,7 +930,7 @@ void ENplus::setup_evse()
 //W (2021-06-12 18:06:03) [EN_WSS, 677]: send[0:148] [2,"2","DataTransfer",{"vendorId":"EN+","messageId":"gatewayInfo","data":"{\"SN\":\"ESP32GATEWAY001\",\"fwVer\":\"V3.2.418\",\"gateCode\":\"91\"}"}]
 //W (2021-06-12 18:06:03) [EN_WSS, 712]: recv[0:144] [2,"1320fa60-3986-4124-97fe-ab101fa0a7e9","DataTransfer",{"data":"{\"mode\":\"normal\"}","messageId":"cpStartTransactionMode","vendorId":"EN+"}]
 //W (2021-06-12 18:06:03) [EN_WSS, 712]: recv[0:144] [2,"1320fa60-3986-4124-97fe-ab101fa0a7e9","DataTransfer",{"data
-//I (2021-06-12 18:06:03) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30  (=1E)    
+//I (2021-06-12 18:06:03) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30  (=1E)
 
     char uid[7] = {0}; // put SN here?
     int result = tf_evse_create(&evse, uid, &hal);
@@ -1101,7 +1112,7 @@ void ENplus::update_evse_auto_start_charging() {
 //        is_in_bootloader(rc);
 //        return;
 //    }
-    
+
     auto_start_charging = false;
 
     evse_auto_start_charging.get("auto_start_charging")->updateBool(auto_start_charging);
