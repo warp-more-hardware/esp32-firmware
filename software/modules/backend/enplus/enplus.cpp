@@ -281,8 +281,8 @@ ENplus::ENplus()
     });
 
     evse_hardware_configuration = Config::Object({
-        {"jumper_configuration", Config::Uint8(0)},
-        {"has_lock_switch", Config::Bool(false)}
+        {"jumper_configuration", Config::Uint8(3)}, // 3 = 16 Ampere = 11KW for the EN+ wallbox
+        {"has_lock_switch", Config::Bool(false)}    // no key lock switch
     });
 
     evse_low_level_state = Config::Object ({
@@ -937,21 +937,6 @@ void ENplus::setup_evse()
 //    if(result != TF_E_OK) {
 //        logger.printfln("Failed to initialize EVSE bricklet. Disabling EVSE support.");
 //        return;
-//    }
-
-    uint8_t jumper_configuration;
-    bool has_lock_switch;
-
-//    result = tf_evse_get_hardware_configuration(&evse, &jumper_configuration, &has_lock_switch);
-
-//    if (result != TF_E_OK) {
-//        if(!is_in_bootloader(result)) {
-//            logger.printfln("EVSE hardware config query failed (rc %d). Disabling EVSE support.", result);
-//        }
-//        return;
-//    } else {
-        evse_hardware_configuration.get("jumper_configuration")->updateUint(jumper_configuration);
-        evse_hardware_configuration.get("has_lock_switch")->updateBool(has_lock_switch);
 //    }
 
       initialized = true;
