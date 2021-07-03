@@ -57,8 +57,8 @@
 #endif
 
 #ifdef warp4sdr3
-#define GREEN_LED 9
-#define BLUE_LED 33
+#define GREEN_LED 13  // this led is blue on the Sonoff DUAL R3
+#define BLUE_LED 9    // There is no second LED on the SDR3 and we need no blinking
 #endif
 
 AsyncWebServer server(80);
@@ -204,11 +204,13 @@ void setup(void) {
     pinMode(BLUE_LED, OUTPUT);
     pinMode(0, INPUT);
 
+#ifndef warp4sdr3
     task_scheduler.scheduleWithFixedDelay("led_blink", [](){
         static bool led_blink_state = false;
         led_blink_state = !led_blink_state;
         digitalWrite(BLUE_LED, led_blink_state ? HIGH : LOW);
     }, 0, 1000);
+#endif
 
 
 

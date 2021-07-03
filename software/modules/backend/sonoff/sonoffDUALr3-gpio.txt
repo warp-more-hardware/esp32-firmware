@@ -1,0 +1,6 @@
+GPIO  0       button1
+GPIO 13       BLUE_LED
+GPIO 14       relay2
+GPIO 27       relay1
+GPIO 32       switch1
+GPIO 33       switch2
