@@ -118,7 +118,7 @@ byte StartCharging[] = {0xA7, 0x53, 0x6e, 0x69, 0x66, 0x66, 0x65, 0x72, 0x20, 0x
 //byte StopCharging[] = {0xA7, 0x36, 0x32, 0x33, 0x33, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00};
 byte StopCharging[] = {0xA7, 0x53, 0x6e, 0x69, 0x66, 0x66, 0x65, 0x72, 0x20, 0x63, 0x68, 0x61, 0x72, 0x67, 0x69, 0x6E, 0x67, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00};
 //byte ChargingSettings[] = {0xAD, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x06, 0x06, 0x0B, 0x05, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-byte ChargingSettings[] = {0xAF, 0x00, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+byte ChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 
 uint16_t crc16_modbus(uint8_t *buffer, uint32_t length) {
@@ -182,8 +182,25 @@ String ENplus::get_hex_privcomm_line(byte *data) {
     return String(PrivCommHexBuffer);
 }
 
+void ENplus::Serial2write(byte *data, int size) {
+    int bytes_to_send = size;
+    int offset = 0;
+    while(bytes_to_send > 0) {
+        int afw = Serial2.availableForWrite();
+        if(afw < bytes_to_send) { // send chunk
+            bytes_to_send = bytes_to_send - Serial2.write(PrivCommTxBuffer + offset, afw);
+            //logger.printfln("    send: Tx afw:%d bytes_to_send:%d offset:%d", afw, bytes_to_send, offset);
+            offset = offset + afw;
+        } else { // send reminder
+            bytes_to_send = bytes_to_send - Serial2.write(PrivCommTxBuffer + offset, bytes_to_send);
+            //logger.printfln("    sEND: Tx afw:%d bytes_to_send:%d offset:%d", afw, bytes_to_send, offset);
+        }
+    }
+}
+
 void ENplus::sendCommand(byte *data, int datasize) {
     PrivCommTxBuffer[4] = data[0]; // command code
+    PrivCommTxBuffer[5]++; // increment sequence number
     PrivCommTxBuffer[6] = (datasize-1) & 0xFF;
     PrivCommTxBuffer[7] = (datasize-1) >> 8;
     for (int i=1; i<=datasize; i++) {
@@ -198,7 +215,7 @@ void ENplus::sendCommand(byte *data, int datasize) {
     get_hex_privcomm_line(PrivCommTxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
     logger.printfln("privcomm: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", PrivCommTxBuffer[4], PrivCommTxBuffer[5], datasize+9, crc);
 
-    Serial2.write(PrivCommTxBuffer, datasize + 9);
+    Serial2write(data, datasize + 9);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 
     PrivCommTxBuffer[5]++; // increment sequence number
@@ -222,7 +239,7 @@ void ENplus::PrivCommSend(byte cmd, uint16_t datasize, byte *data) {
     get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
     logger.printfln("PRIVCOMM: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", cmd, data[5], datasize, crc);
 
-    Serial2.write(data, datasize + 10);
+    Serial2write(data, datasize + 10);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 }
 
@@ -239,7 +256,7 @@ void ENplus::PrivCommAck(byte cmd, byte *data) {
     get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
     logger.printfln("PRIV ack: Tx cmd_%.2X seq:%.2X, crc:%.4X", data[4], data[5], crc);
 
-    Serial2.write(data, 11);
+    Serial2write(data, 11);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 }
 
@@ -382,7 +399,7 @@ int ENplus::bs_evse_stop_charging(TF_EVSE *evse) {
 }
 
 int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
-    logger.printfln("BS-EVSE set charging limit to %d Ampere.", uint16_t(max_current/1000));
+    logger.printfln("BS-EVSE set charging limit to %d Ampere.", uint8_t(max_current/1000));
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
 
     time_t t=now();     // get current time
@@ -392,7 +409,7 @@ int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current
     ChargingSettings[58] = hour(t);
     ChargingSettings[59] = minute(t);
     ChargingSettings[60] = second(t);
-    ChargingSettings[65] = uint16_t(max_current/1000);
+    ChargingSettings[65] = uint8_t(max_current/1000);
     sendCommand(ChargingSettings, sizeof(ChargingSettings));
 
     return 0;
@@ -400,54 +417,30 @@ int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current
 
 
 int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
-//    if(tf_hal_get_common(evse->tfp->hal)->locked) {
-//        return TF_E_LOCKED;
-//    }
-//
 //    bool response_expected = true;
 //    tf_tfp_prepare_send(evse->tfp, TF_EVSE_FUNCTION_GET_STATE, 0, 17, response_expected);
-//
-//    uint32_t deadline = tf_hal_current_time_us(evse->tfp->hal) + tf_hal_get_common(evse->tfp->hal)->timeout;
-//
-//    uint8_t error_code = 0;
-//    int result = tf_tfp_transmit_packet(evse->tfp, response_expected, deadline, &error_code);
-//    if(result < 0)
-//        return result;
-//
-//    if (result & TF_TICK_TIMEOUT) {
-//        //return -result;
-//        return TF_E_TIMEOUT;
-//    }
-//
-//    if (result & TF_TICK_PACKET_RECEIVED && error_code == 0) {
-//        if (ret_iec61851_state != NULL) { *ret_iec61851_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_vehicle_state != NULL) { *ret_vehicle_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_contactor_state != NULL) { *ret_contactor_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_contactor_error != NULL) { *ret_contactor_error = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_charge_release != NULL) { *ret_charge_release = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_allowed_charging_current != NULL) { *ret_allowed_charging_current = tf_packetbuffer_read_uint16_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 2); }
-//        if (ret_error_state != NULL) { *ret_error_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_lock_state != NULL) { *ret_lock_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_time_since_state_change != NULL) { *ret_time_since_state_change = tf_packetbuffer_read_uint32_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 4); }
-//        if (ret_uptime != NULL) { *ret_uptime = tf_packetbuffer_read_uint32_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 4); }
-//        tf_tfp_packet_processed(evse->tfp);
-//    }
-//
-//    result = tf_tfp_finish_send(evse->tfp, result, deadline);
-//    if(result < 0)
-//        return result;
-//
-    *ret_iec61851_state = charging ? 2 : 1; // 1 verbunden 2 laedt
-    *ret_vehicle_state = charging ? 2 : 1; // 1 verbunden 2 leadt
+    uint32_t allowed_charging_current;
+
+    *ret_iec61851_state = evse_state.get("iec61851_state")->asUint();
+    *ret_vehicle_state = evse_state.get("iec61851_state")->asUint(); // == 1 ? charging ? 2 : 1; // 1 verbunden 2 leadt
     *ret_contactor_state = 2;
     *ret_contactor_error = 0;
     *ret_charge_release = 1; // manuell 0 automatisch
-    *ret_allowed_charging_current = 8000;
+    // find the charging current maximum
+    allowed_charging_current = min(
+        evse_max_charging_current.get("max_current_incoming_cable")->asUint(),
+        evse_max_charging_current.get("max_current_outgoing_cable")->asUint());
+//    allowed_charging_current = min(
+//        allowed_charging_current,
+//        evse_max_charging_current.get("max_current_managed")->asUint());
+    *ret_allowed_charging_current = min(
+        allowed_charging_current,
+        evse_max_charging_current.get("max_current_configured")->asUint());
     *ret_error_state = 0;
     *ret_lock_state = 0;
-    *ret_time_since_state_change = 123456;
+    *ret_time_since_state_change = evse_state.get("time_since_state_change")->asUint();
     *ret_uptime = millis();
-//    return tf_tfp_get_error(error_code);
+
     return TF_E_OK;
 }
 
@@ -624,6 +617,7 @@ void ENplus::loop()
     static uint32_t last_check = 0;
     static uint32_t last_debug = 0;
     static uint32_t nextMillis = 2000;
+    static uint8_t last_iec61851_state = 0;
     static uint32_t nextCommand = 12; // Start initialization with Init12 command
     uint8_t cmd;
     uint8_t seq;
@@ -692,14 +686,14 @@ void ENplus::loop()
                     if(PrivCommRxBufferPointer == 8) { // this was the second byte of the length, move on
                         PrivCommRxState = PRIVCOMM_PAYLOAD;
                         len = (uint16_t)(PrivCommRxBuffer[7] << 8 | PrivCommRxBuffer[6]);
-                        //logger.printfln("PRIVCOMM INFO: len: %d PrivCommRxBufferPointer: %d", len, PrivCommRxBufferPointer);
+                        //logger.printfln("PRIVCOMM INFO: len: %d cmd:%.2X", len, cmd);
                     }
                     break;
                 case PRIVCOMM_PAYLOAD:
                     if(PrivCommRxBufferPointer == len + 8) {
                         //final byte of Payload received.
                         PrivCommRxState = PRIVCOMM_CRC;
-                    } else if(cmd == 0x09) {
+                    } else {//if(cmd == 0x09) {
                         // this is an ugly hack to deal with non conforming 0x09 "upload log" packets
                         // cmd09 messeges are always too short and with no crc??? wtf?
                         // hopefully there are no more packets like this, or enough to recognize a pattern
@@ -757,6 +751,11 @@ void ENplus::loop()
     PrivCommSend(0xAA, 6, PrivCommTxBuffer);
                 break;
             case 0x03:
+                if(last_iec61851_state != PrivCommRxBuffer[9]) {
+                    last_iec61851_state = PrivCommRxBuffer[9];
+                    evse_state.get("time_since_state_change")->updateUint(0);
+                    // TODO is there a timer we can just reset? or do we have to create our own derived from uptime?
+                }
                 switch (PrivCommRxBuffer[9]) { // status
                     // TODO adapt to EN+ states in web interface
                     case 1:
@@ -892,7 +891,8 @@ void ENplus::loop()
 void ENplus::setup_evse()
 {
     Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
-    Serial2.setTimeout(90);
+    Serial2.setRxBufferSize(2048);
+    //Serial2.setTimeout(90);
     logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
 
     //ctrl_cmd set heart beat time out
@@ -1040,9 +1040,10 @@ void ENplus::update_evse_state() {
     bool contactor_error_changed = evse_state.get("contactor_error")->updateUint(contactor_error);
     evse_state.get("charge_release")->updateUint(charge_release);
     evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
+    //logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
     bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
     evse_state.get("lock_state")->updateUint(lock_state);
-    evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
+    //evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
     evse_state.get("uptime")->updateUint(uptime);
 
 //    if (contactor_error_changed) {
@@ -1071,7 +1072,7 @@ void ENplus::update_evse_max_charging_current() {
     //incoming = 16000;
     //outgoing = 16000;
 
-    evse_max_charging_current.get("max_current_configured")->updateUint(configured);
+    //evse_max_charging_current.get("max_current_configured")->updateUint(configured);
     //evse_max_charging_current.get("max_current_incoming_cable")->updateUint(incoming);
     //evse_max_charging_current.get("max_current_outgoing_cable")->updateUint(outgoing);
 //    evse_max_charging_current.get("max_current_managed")->updateUint(managed);

@@ -234,4 +234,5 @@ void loop(void) {
     {{{module_loop}}}
 
     digitalWrite(GREEN_LED, digitalRead(0));
+    //delay(5); // test if the chip gets less hot with the delay and still gets the job done
 }

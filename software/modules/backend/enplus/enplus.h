@@ -52,6 +52,7 @@ private:
     String get_evse_debug_header();
     String get_evse_debug_line();
     String get_hex_privcomm_line(byte *data);
+    void Serial2write(byte *data, int size);
     void PrivCommSend(byte cmd, uint16_t datasize, byte *data);
     void PrivCommAck(byte cmd, byte *data);
     void sendCommand(byte *data, int datasize);
