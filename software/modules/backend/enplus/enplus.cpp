@@ -422,7 +422,7 @@ int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
     uint32_t allowed_charging_current;
 
     *ret_iec61851_state = evse_state.get("iec61851_state")->asUint();
-    *ret_vehicle_state = evse_state.get("iec61851_state")->asUint(); // == 1 ? charging ? 2 : 1; // 1 verbunden 2 leadt
+    *ret_vehicle_state = evse_state.get("iec61851_state")->asUint(); // == 1 ? // charging ? 2 : 1; // 1 verbunden 2 leadt
     *ret_contactor_state = 2;
     *ret_contactor_error = 0;
     *ret_charge_release = 1; // manuell 0 automatisch
@@ -617,6 +617,7 @@ void ENplus::loop()
     static uint32_t last_check = 0;
     static uint32_t last_debug = 0;
     static uint32_t nextMillis = 2000;
+    static uint32_t last_state_change = millis();
     static uint8_t last_iec61851_state = 0;
     static uint32_t nextCommand = 12; // Start initialization with Init12 command
     uint8_t cmd;
@@ -753,8 +754,7 @@ void ENplus::loop()
             case 0x03:
                 if(last_iec61851_state != PrivCommRxBuffer[9]) {
                     last_iec61851_state = PrivCommRxBuffer[9];
-                    evse_state.get("time_since_state_change")->updateUint(0);
-                    // TODO is there a timer we can just reset? or do we have to create our own derived from uptime?
+                    last_state_change = millis();
                 }
                 switch (PrivCommRxBuffer[9]) { // status
                     // TODO adapt to EN+ states in web interface
@@ -886,6 +886,7 @@ void ENplus::loop()
 //        nextMillis += 1000;
 //    }
 
+    evse_state.get("time_since_state_change")->updateUint(millis() - last_state_change);
 }
 
 void ENplus::setup_evse()
@@ -1030,9 +1031,7 @@ void ENplus::update_evse_state() {
         return;
     }
 
-    //firmware_update_allowed = vehicle_state == 0;
-    // fix/revert this before release!!!
-    firmware_update_allowed = vehicle_state != 0;
+    firmware_update_allowed = vehicle_state == 0;
 
     evse_state.get("iec61851_state")->updateUint(iec61851_state);
     evse_state.get("vehicle_state")->updateUint(vehicle_state);
