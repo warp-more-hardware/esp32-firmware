@@ -197,7 +197,7 @@ void ENplus::sendCommand(byte *data, int datasize) {
     PrivCommTxBuffer[datasize+8] = crc >> 8;
 
     get_hex_privcomm_line(PrivCommTxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
-    logger.printfln("privcomm: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", PrivCommTxBuffer[4], PrivCommTxBuffer[5], datasize+9, crc);
+    logger.printfln("Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", PrivCommTxBuffer[4], PrivCommTxBuffer[5], datasize+9, crc);
 
     Serial2write(data, datasize + 9);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
@@ -221,7 +221,7 @@ void ENplus::PrivCommSend(byte cmd, uint16_t datasize, byte *data) {
     data[datasize+9] = crc >> 8;
 
     get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
-    logger.printfln("PRIVCOMM: Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", cmd, data[5], datasize, crc);
+    logger.printfln("Tx cmd_%.2X seq:%.2X, len:%d, crc:%.4X", cmd, data[5], datasize, crc);
 
     Serial2write(data, datasize + 10);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
@@ -238,7 +238,7 @@ void ENplus::PrivCommAck(byte cmd, byte *data) {
     data[10] = crc >> 8;
 
     get_hex_privcomm_line(data); // PrivCommHexBuffer now holds the hex representation of the buffer
-    logger.printfln("PRIV ack: Tx cmd_%.2X seq:%.2X, crc:%.4X", data[4], data[5], crc);
+    logger.printfln("Tx cmd_%.2X seq:%.2X, crc:%.4X", data[4], data[5], crc);
 
     Serial2write(data, 11);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
@@ -370,20 +370,20 @@ ENplus::ENplus()
 
 int ENplus::bs_evse_start_charging(TF_EVSE *evse) {
     charging = true;
-    logger.printfln("BS-EVSE start charging");
+    logger.printfln("EVSE start charging");
     sendCommand(StartCharging, sizeof(StartCharging));
     return 0;
 }
 
 int ENplus::bs_evse_stop_charging(TF_EVSE *evse) {
     charging = false;
-    logger.printfln("BS-EVSE stop charging");
+    logger.printfln("EVSE stop charging");
     sendCommand(StopCharging, sizeof(StopCharging));
     return 0;
 }
 
 int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
-    logger.printfln("BS-EVSE set charging limit to %d Ampere.", uint8_t(max_current/1000));
+    logger.printfln("EVSE set charging limit to %d Ampere.", uint8_t(max_current/1000));
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
 
     time_t t=now();     // get current time
@@ -686,10 +686,11 @@ void ENplus::loop()
                            PrivCommRxBuffer[PrivCommRxBufferPointer-3] == 0x03 &&
                            PrivCommRxBuffer[PrivCommRxBufferPointer-2] == 0x00 &&
                            PrivCommRxBuffer[PrivCommRxBufferPointer-1] == 0x00) {
-
                             logger.printfln("PRIVCOMM BUG: process the next command albeit the last one was not finished. Buggy! cmd:%.2X len:%d cut off:%d", cmd, len, PrivCommRxBufferPointer-4);
                             PrivCommRxState = PRIVCOMM_CMD;
                             PrivCommRxBufferPointer = 4;
+                            get_hex_privcomm_line(PrivCommRxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
+                            evse_privcomm.get("RX")->updateString(PrivCommHexBuffer);
                             cmd_to_process = true;
                         }
                     }
@@ -702,9 +703,9 @@ void ENplus::loop()
                         crc = (uint16_t)(PrivCommRxBuffer[len + 9] << 8 | PrivCommRxBuffer[len + 8]);
                         uint16_t checksum = crc16_modbus(PrivCommRxBuffer, len+8);
                         if(crc == checksum) {
-                            logger.printfln("PRIVCOMM: Rx cmd_%.2X seq:%.2X len:%d crc:%.4X", cmd, seq, len, crc);
+                            logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X", cmd, seq, len, crc);
                         } else {
-                            logger.printfln("PRIVCOMM: CRC ERROR Rx cmd_%.2X seq:%.2X len:%d crc:%.4X checksum:%.4X", cmd, seq, len, crc, checksum);
+                            logger.printfln("CRC ERROR Rx cmd_%.2X seq:%.2X len:%d crc:%.4X checksum:%.4X", cmd, seq, len, crc, checksum);
                             break;
                         }
                         // log the whole packet?, but logger.printfln only writes 128 bytes / for now Serial.print on Serial2.read it is.
@@ -717,11 +718,18 @@ void ENplus::loop()
     }
 
     if(cmd_to_process) {
+        String versionData = "";
         switch( cmd ) {
             case 0x02: // Info: Serial number, Version
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  Ack Serial number and Version.", cmd, seq);
+                logger.printfln("   cmd_%.2X seq:%.2X  Ack Serial number and Version.", cmd, seq);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
                 // TODO extract relevant data
+                for (int i=8; PrivCommRxBuffer[i] != 0; i++) {versionData += char(PrivCommRxBuffer[i]);}  // copy SN
+                versionData += ", hw ";
+                for (int i=43; PrivCommRxBuffer[i] != 0; i++) {versionData += char(PrivCommRxBuffer[i]);}  // copy hardware version
+                versionData += ", fw ";
+                for (int i=91; PrivCommRxBuffer[i] != 0; i++) {versionData += char(PrivCommRxBuffer[i]);}  // copy firmware version
+                logger.printfln("EVSE serial %s", versionData);
 //                int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
 //                if(result != 0) {
 //                    return;
@@ -770,15 +778,15 @@ void ENplus::loop()
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
                 }
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, PrivCommRxBuffer[9], cmd_03_status[PrivCommRxBuffer[9]]);
+                logger.printfln("   cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, PrivCommRxBuffer[9], cmd_03_status[PrivCommRxBuffer[9]]);
 //6948        Buffer: FA 03 00 00 03 02 0E 00 00 01 01 00 00 00 00 00 00 00 00 00 04 00 CE C5
-//6949        PRIVCOMM: Rx cmd_03 seq:02 len:14 crc:C5CE
+//6949        Rx cmd_03 seq:02 len:14 crc:C5CE
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
 //[PRIV_COMM, 1859]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 08 07 00 10 15 06 03 10 2C 1B 15 92
 //[PRIV_COMM, 1859]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 0A 07 00 10 15 06 03 10 2C 1C F5 9A
                 break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X status:%d value:%d  Answer time request / ESP32-GD32 communication heartbeat.", cmd, seq, PrivCommRxBuffer[8], PrivCommRxBuffer[12]);
+                logger.printfln("   cmd_%.2X seq:%.2X status:%d value:%d  Answer time request / ESP32-GD32 communication heartbeat.", cmd, seq, PrivCommRxBuffer[8], PrivCommRxBuffer[12]);
                 // && PrivCommRxBuffer[9] == 0x01
                 // && PrivCommRxBuffer[10] == 0x00
                 // && PrivCommRxBuffer[11] == 0x00
@@ -799,12 +807,12 @@ void ENplus::loop()
                 }
                 break;
             case 0x08:
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  type:%.2X.", cmd, seq, PrivCommRxBuffer[77]);
-                if (PrivCommRxBuffer[77] == 0) {  // statistics
-                    logger.printfln("%dWh\t %d\t %dWh\t %d\t %d\t %d\t %dW\t %d\t %fV\t %fV\t %fV\t %fA\t %d\t %d\t %d\t",
-                              PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy
+                logger.printfln("   cmd_%.2X seq:%.2X  type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
+                if (PrivCommRxBuffer[77] < 10) {  // statistics
+                    logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%fV\t%fV\t%fV\t%fA\t%d\t%d\t%d\t",
+                              PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
                               PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87],
-                              PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89],  // charged energy
+                              PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89],  // charged energy Wh
                               PrivCommRxBuffer[90]+256*PrivCommRxBuffer[91],
                               PrivCommRxBuffer[92]+256*PrivCommRxBuffer[93],
                               PrivCommRxBuffer[94]+256*PrivCommRxBuffer[95],
@@ -816,7 +824,7 @@ void ENplus::loop()
                               float(PrivCommRxBuffer[106]+256*PrivCommRxBuffer[107]/10),  // charging current * 10
                               PrivCommRxBuffer[108]+256*PrivCommRxBuffer[109],
                               PrivCommRxBuffer[110]+256*PrivCommRxBuffer[111],
-                              PrivCommRxBuffer[112]+256*PrivCommRxBuffer[113]
+                              PrivCommRxBuffer[113]+256*PrivCommRxBuffer[114]
                               );
                 }
                 else if (PrivCommRxBuffer[77] == 0x10) {  // RFID card
@@ -826,19 +834,26 @@ void ENplus::loop()
                 }
                 break;
             case 0x09:
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  Ack.", cmd, seq);
-                //sendCommand(Ack09, sizeof(Ack09), receiveSequence);
+                logger.printfln("   cmd_%.2X seq:%.2X Charging stop reason: %d start: %04d/%02d/%02d %02d:%02d:%02d stopp: %04d/%02d/%02d %02d:%02d:%02d meter: %dWh v1: %d v2: %d v3: %d",
+                    cmd, seq,
+                    PrivCommRxBuffer[77],  // "stopreson": 1 = Remote, 3 = EVDisconnected
+                    PrivCommRxBuffer[80]+2000, PrivCommRxBuffer[81], PrivCommRxBuffer[82], PrivCommRxBuffer[83], PrivCommRxBuffer[84], PrivCommRxBuffer[85],
+                    PrivCommRxBuffer[86]+2000, PrivCommRxBuffer[87], PrivCommRxBuffer[88], PrivCommRxBuffer[89], PrivCommRxBuffer[90], PrivCommRxBuffer[91],
+                    PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97],
+                    PrivCommRxBuffer[78]+256*PrivCommRxBuffer[79],
+                    PrivCommRxBuffer[92]+256*PrivCommRxBuffer[93],
+                    PrivCommRxBuffer[94]+256*PrivCommRxBuffer[95]);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA9RecordAck
                 break;
             case 0x0A:
-                logger.printfln("priv ack:    cmd_%.2X seq:%.2X Heartbeat Timeout:%ds.", cmd, seq, PrivCommRxBuffer[12]);
+                logger.printfln("   cmd_%.2X seq:%.2X Heartbeat Timeout:%ds", cmd, seq, PrivCommRxBuffer[12]);
                 break;
             case 0x0E:
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  type:%.2X.", cmd, seq, PrivCommRxBuffer[77]);
+                logger.printfln("   cmd_%.2X seq:%.2X  type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
                 //logger.printfln("0E: "+printHex8(PrivCommRxBuffer,61)+", cpVolt: "+String(PrivCommRxBuffer[20]+256*PrivCommRxBuffer[21])+", "+String(PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18]));
                 break;
             default:
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  I don't know what to do about it.", cmd, seq);
+                logger.printfln("   cmd_%.2X seq:%.2X  I don't know what to do about it.", cmd, seq);
                 break;
         }//switch process cmd
         cmd_to_process = false;
