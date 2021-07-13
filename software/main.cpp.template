@@ -181,7 +181,9 @@ void setup(void) {
     check(tf_hal_create(&hal, ports, sizeof(ports)/sizeof(ports[0])), "hal create");
     tf_hal_set_timeout(&hal, 100000);
 
+#ifdef warp
     read_efuses(&uid_numeric, uid, passphrase);
+#endif
 
     api.setup();
     task_scheduler.setup();
@@ -218,6 +220,7 @@ void setup(void) {
 }
 
 void loop(void) {
+#ifdef warp
     //prioritize proxy performance over web interface and wifi responsitivity
     tf_hal_tick(&hal, 1000);
     tf_hal_tick(&hal, 1000);
@@ -227,6 +230,7 @@ void loop(void) {
     tf_hal_tick(&hal, 1000);
     tf_hal_tick(&hal, 1000);
     tf_hal_tick(&hal, 1000);
+#endif
 
     task_scheduler.loop();
     api.loop();
