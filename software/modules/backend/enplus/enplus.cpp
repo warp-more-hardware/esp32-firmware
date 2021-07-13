@@ -120,6 +120,12 @@ byte StopCharging[] = {0xA7, 0x53, 0x6e, 0x69, 0x66, 0x66, 0x65, 0x72, 0x20, 0x6
 //byte ChargingSettings[] = {0xAD, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x06, 0x06, 0x0B, 0x05, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 byte ChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
+// Commands found in Autoaid protocol document, chapter 6.3:
+// Enter boot mode: Tx(cmd_AB len: 20): FA 03 00 00 AB 14 0A 00 00 00 00 00 00 00 05 00 00 00 62 B2
+// Enter boot mode acknowledge: Rx(cmd_0B len: 16): FA 03 00 00 0B 14 06 00 00 00 05 00 00 00 F1 3A
+byte EnterBootMode[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00};
+// Exit boot mode, enter application mode: Tx (cmd_AB len: 24): FA 03 00 00 AB 5A 0E 00 00 00 03 08 FC FF 00 00 02 00 4F 4B 00 00 E1 98
+byte EnterAppMode[] = {0xAB, 0x00, 0x00, 0x03, 0x08, 0xFC, 0xFF, 0x00, 0x00, 0x02, 0x00, 0x4F, 0x4B, 0x00, 0x00};
 
 uint16_t crc16_modbus(uint8_t *buffer, uint32_t length) {
         //uint16_t crc = 0xFFFF;
@@ -132,28 +138,6 @@ uint16_t crc16_modbus(uint8_t *buffer, uint32_t length) {
         }
 
         return crc;
-}
-
-uint16_t my_crc(byte *data) {
-  unsigned short reg_crc;
-  unsigned short s_crcchk;
-  unsigned char *pData = 0;
-  int payloadLength = data[6] + 256*data[7];
-  pData = data;
-  s_crcchk = 0;
-  reg_crc = 0x0;
-  int i = payloadLength +8;
-  while (i--) {
-    reg_crc ^= *pData++;
-    for (s_crcchk = 0; s_crcchk < 8; s_crcchk ++) {
-      if (reg_crc & 0x01) {
-        reg_crc = (reg_crc >> 1) ^ 0xa001;
-      } else {
-        reg_crc = reg_crc >> 1;
-      }
-    }
-  }
-  return reg_crc;
 }
 
 #define PRIVCOMM_MAGIC      0
@@ -794,7 +778,7 @@ void ENplus::loop()
 //[PRIV_COMM, 1859]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 0A 07 00 10 15 06 03 10 2C 1C F5 9A
                 break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
-                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X  Answer time request / ESP32-GD32 communication heartbeat.", cmd, seq);
+                logger.printfln("PRIVCOMM:    cmd_%.2X seq:%.2X status:%d value:%d  Answer time request / ESP32-GD32 communication heartbeat.", cmd, seq, PrivCommRxBuffer[8], PrivCommRxBuffer[12]);
                 // && PrivCommRxBuffer[9] == 0x01
                 // && PrivCommRxBuffer[10] == 0x00
                 // && PrivCommRxBuffer[11] == 0x00
@@ -859,32 +843,6 @@ void ENplus::loop()
         }//switch process cmd
         cmd_to_process = false;
     }
-
-//    // init command sequencer
-//    if (millis() > nextMillis) {
-//        switch (nextCommand){
-//            case 1: sendCommand(Init1, sizeof(Init1)); break;
-//            case 2: sendCommand(Init2, sizeof(Init2)); break;
-//            case 3: sendCommand(Init3, sizeof(Init3)); break;
-//            case 4: sendCommand(Init4, sizeof(Init4)); break;
-//            case 5: sendCommand(Init5, sizeof(Init5)); break;
-//            case 6: sendCommand(Init6, sizeof(Init6)); break;
-//            case 7: sendCommand(Init7, sizeof(Init7)); break;
-//            case 8: sendCommand(Init8, sizeof(Init8)); break;
-//            case 9: sendCommand(Init9, sizeof(Init9)); break;
-//            case 10: sendCommand(Init10, sizeof(Init10)); break;
-//            case 11: sendCommand(Init11, sizeof(Init11)); break;
-//            case 12: sendCommand(Init12, sizeof(Init12)); break;
-//            case 13: sendCommand(Init12, sizeof(Init12)); break;
-//            case 14: sendCommand(Init12, sizeof(Init12)); break;
-//            case 15: sendCommand(Init12, sizeof(Init12)); break;
-//            case 16: sendTimeLong(); break;
-//            case 17: sendCommand(Init13, sizeof(Init13)); break;
-//            case 18: sendCommand(Init14, sizeof(Init14)); break;
-//        }
-//        if (nextCommand < 19) nextCommand++;
-//        nextMillis += 1000;
-//    }
 
     evse_state.get("time_since_state_change")->updateUint(millis() - last_state_change);
 }
