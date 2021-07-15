@@ -733,7 +733,7 @@ void ENplus::loop()
                 logger.printfln("   cmd_%.2X seq:%.2X  Ack Serial number and Version.", cmd, seq);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
                 // TODO extract relevant data
-                logger.printfln("EVSE SN: %s hw: %s fw: %s", versionData, PrivCommRxBuffer+8, PrivCommRxBuffer+43, PrivCommRxBuffer+91);
+                logger.printfln("EVSE SN: %s hw: %s fw: %s", PrivCommRxBuffer+8, PrivCommRxBuffer+43, PrivCommRxBuffer+91);
 //                int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
 //                if(result != 0) {
 //                    return;
