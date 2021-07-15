@@ -178,10 +178,10 @@ void setup(void) {
         {"spiffs", Config::Str(spiffs_version)},
     });
 
+#ifdef warp
     check(tf_hal_create(&hal, ports, sizeof(ports)/sizeof(ports[0])), "hal create");
     tf_hal_set_timeout(&hal, 100000);
 
-#ifdef warp
     read_efuses(&uid_numeric, uid, passphrase);
 #endif
 

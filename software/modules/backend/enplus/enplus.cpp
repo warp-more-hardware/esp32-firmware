@@ -158,11 +158,16 @@ String ENplus::get_hex_privcomm_line(byte *data) {
         len = 1000;
     }
 
+    int offset = 0;
     for(uint32_t i = 0; i < len; i++) {
         snprintf(PrivCommHexBuffer + 3*i, sizeof(PrivCommHexBuffer)/sizeof(PrivCommHexBuffer[0]), "%.2X ", data[i]);
+        #define BUFFER_CHUNKS 19
+        if(i > 0 && i % BUFFER_CHUNKS == 0) {
+            logger.printfln("privcomm: %s", PrivCommHexBuffer + offset);
+            offset = offset + 3*BUFFER_CHUNKS;
+        }
     }
-
-    logger.printfln("Buffer: %s", PrivCommHexBuffer);
+    logger.printfln("privcomm: %s", PrivCommHexBuffer + offset);
     return String(PrivCommHexBuffer);
 }
 
@@ -628,8 +633,8 @@ void ENplus::loop()
         do {
             rxByte = Serial2.read();
             PrivCommRxBuffer[PrivCommRxBufferPointer++] = rxByte;
-            Serial.print(rxByte, HEX);
-            Serial.print(" ");
+            //Serial.print(rxByte, HEX);
+            //Serial.print(" ");
             switch( PrivCommRxState ) {
                 // Magic Header (0xFA) Version (0x03) Address (0x0000) CMD (0x??) Seq No. (0x??) Length (0x????) Payload (0-1015) Checksum (crc16)
                 case PRIVCOMM_MAGIC:
@@ -697,12 +702,17 @@ void ENplus::loop()
                     break;
                 case PRIVCOMM_CRC:
                     if(PrivCommRxBufferPointer == len + 10) {
-            Serial.println();
+            //Serial.println();
                         PrivCommRxState = PRIVCOMM_MAGIC;
                         get_hex_privcomm_line(PrivCommRxBuffer); // PrivCommHexBuffer now holds the hex representation of the buffer
                         crc = (uint16_t)(PrivCommRxBuffer[len + 9] << 8 | PrivCommRxBuffer[len + 8]);
                         uint16_t checksum = crc16_modbus(PrivCommRxBuffer, len+8);
                         if(crc == checksum) {
+                            if(!evse_found) {
+                                logger.printfln("EN+ GD EVSE found. Enabling EVSE support.");
+                                evse_found = true;
+                                register_urls();
+                            }
                             logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X", cmd, seq, len, crc);
                         } else {
                             logger.printfln("CRC ERROR Rx cmd_%.2X seq:%.2X len:%d crc:%.4X checksum:%.4X", cmd, seq, len, crc, checksum);
@@ -718,18 +728,12 @@ void ENplus::loop()
     }
 
     if(cmd_to_process) {
-        String versionData = "";
         switch( cmd ) {
             case 0x02: // Info: Serial number, Version
                 logger.printfln("   cmd_%.2X seq:%.2X  Ack Serial number and Version.", cmd, seq);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
                 // TODO extract relevant data
-                for (int i=8; PrivCommRxBuffer[i] != 0; i++) {versionData += char(PrivCommRxBuffer[i]);}  // copy SN
-                versionData += ", hw ";
-                for (int i=43; PrivCommRxBuffer[i] != 0; i++) {versionData += char(PrivCommRxBuffer[i]);}  // copy hardware version
-                versionData += ", fw ";
-                for (int i=91; PrivCommRxBuffer[i] != 0; i++) {versionData += char(PrivCommRxBuffer[i]);}  // copy firmware version
-                logger.printfln("EVSE serial %s", versionData);
+                logger.printfln("EVSE SN: %s hw: %s fw: %s", versionData, PrivCommRxBuffer+8, PrivCommRxBuffer+43, PrivCommRxBuffer+91);
 //                int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
 //                if(result != 0) {
 //                    return;
@@ -865,10 +869,11 @@ void ENplus::loop()
 void ENplus::setup_evse()
 {
     Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
-    Serial2.setRxBufferSize(2048);
-    //Serial2.setTimeout(90);
+    Serial2.setRxBufferSize(1024);
+    Serial2.setTimeout(180);
     logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
 
+/*
     //ctrl_cmd set heart beat time out
     PrivCommTxBuffer[PayloadStart + 0] = 0x18;
     PrivCommTxBuffer[PayloadStart + 1] = 0x08;
@@ -882,9 +887,7 @@ void ENplus::setup_evse()
         logger.printfln("wait for PrivComm");
         if (Serial2.available() == 0) { delay(250); }
     } while(Serial2.available() == 0 && millis()<10000); // TODO disable EVSE in case of no show
-
-    logger.printfln("EN+ GD EVSE found. Enabling EVSE support.");
-    evse_found = true;
+*/
 
     // TODO start: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
     switch (timeStatus()){
@@ -911,7 +914,7 @@ void ENplus::setup_evse()
 //I (2021-06-12 18:06:03) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30  (=1E)
 
     char uid[7] = {0}; // put SN here?
-    int result = tf_evse_create(&evse, uid, &hal);
+    //int result = tf_evse_create(&evse, uid, &hal);
 //    if(result != TF_E_OK) {
 //        logger.printfln("Failed to initialize EVSE bricklet. Disabling EVSE support.");
 //        return;
@@ -1063,9 +1066,9 @@ void ENplus::update_evse_auto_start_charging() {
 //        return;
 //    }
 
-    auto_start_charging = false;
+    //auto_start_charging = false;
 
-    evse_auto_start_charging.get("auto_start_charging")->updateBool(auto_start_charging);
+    //evse_auto_start_charging.get("auto_start_charging")->updateBool(auto_start_charging);
 }
 
 void ENplus::update_evse_managed() {
