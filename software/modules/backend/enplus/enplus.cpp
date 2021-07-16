@@ -160,12 +160,12 @@ String ENplus::get_hex_privcomm_line(byte *data) {
 
     int offset = 0;
     for(uint32_t i = 0; i < len; i++) {
-        snprintf(PrivCommHexBuffer + 3*i, sizeof(PrivCommHexBuffer)/sizeof(PrivCommHexBuffer[0]), "%.2X ", data[i]);
-        #define BUFFER_CHUNKS 19
+        #define BUFFER_CHUNKS 20
         if(i > 0 && i % BUFFER_CHUNKS == 0) {
             logger.printfln("privcomm: %s", PrivCommHexBuffer + offset);
             offset = offset + 3*BUFFER_CHUNKS;
         }
+        snprintf(PrivCommHexBuffer + 3*i, sizeof(PrivCommHexBuffer)/sizeof(PrivCommHexBuffer[0]), "%.2X ", data[i]);
     }
     logger.printfln("privcomm: %s", PrivCommHexBuffer + offset);
     return String(PrivCommHexBuffer);
@@ -609,9 +609,9 @@ void ENplus::loop()
     static uint32_t last_state_change = millis();
     static uint8_t last_iec61851_state = 0;
     static uint32_t nextCommand = 12; // Start initialization with Init12 command
-    uint8_t cmd;
-    uint8_t seq;
-    uint16_t len;
+    static uint8_t cmd;
+    static uint8_t seq;
+    static uint16_t len;
     uint16_t crc;
     static bool cmd_to_process = false;
     static byte PrivCommRxState = PRIVCOMM_MAGIC;
