@@ -45,6 +45,7 @@ private:
     void update_evse_auto_start_charging();
     void update_evse_managed();
     void update_evse_user_calibration();
+    void update_evse_charge_stats();
     bool is_in_bootloader(int rc);
     bool flash_firmware();
     bool flash_plugin(int regular_plugin_upto);

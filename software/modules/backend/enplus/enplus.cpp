@@ -119,6 +119,8 @@ byte StartCharging[] = {0xA7, 0x53, 0x6e, 0x69, 0x66, 0x66, 0x65, 0x72, 0x20, 0x
 byte StopCharging[] = {0xA7, 0x53, 0x6e, 0x69, 0x66, 0x66, 0x65, 0x72, 0x20, 0x63, 0x68, 0x61, 0x72, 0x67, 0x69, 0x6E, 0x67, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00};
 //byte ChargingSettings[] = {0xAD, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x06, 0x06, 0x0B, 0x05, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 byte ChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//byte ChargingSettings[] = {0xAF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200,
+//1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200};
 
 // Commands found in Autoaid protocol document, chapter 6.3:
 // Enter boot mode: Tx(cmd_AB len: 20): FA 03 00 00 AB 14 0A 00 00 00 00 00 00 00 05 00 00 00 62 B2
@@ -180,6 +182,8 @@ void ENplus::Serial2write(byte *data, int size) {
             bytes_to_send = bytes_to_send - Serial2.write(PrivCommTxBuffer + offset, afw);
             //logger.printfln("    send: Tx afw:%d bytes_to_send:%d offset:%d", afw, bytes_to_send, offset);
             offset = offset + afw;
+            //logger.printfln("    could not send in one shot... delay(1250)");
+            //delay(1250);
         } else { // send reminder
             bytes_to_send = bytes_to_send - Serial2.write(PrivCommTxBuffer + offset, bytes_to_send);
             //logger.printfln("    sEND: Tx afw:%d bytes_to_send:%d offset:%d", afw, bytes_to_send, offset);
@@ -250,7 +254,7 @@ void ENplus::PrivCommAck(byte cmd, byte *data) {
 }
 
 
-void ENplus::sendTimeLong (void) {
+void ENplus::sendTimeLong() {
     PrivCommTxBuffer[5]++; // increment sequence number
     time_t t = now(); // get current time
     PrivCommTxBuffer[PayloadStart + 0] = 0x18;
@@ -460,6 +464,10 @@ void ENplus::setup()
     /*task_scheduler.scheduleWithFixedDelay("update_evse_user_calibration", [this](){
         update_evse_user_calibration();
     }, 0, 10000);*/
+
+    task_scheduler.scheduleWithFixedDelay("update_evse_charge_stats", [this](){
+        update_evse_charge_stats();
+    }, 0, 10000);
 }
 
 String ENplus::get_evse_debug_header() {
@@ -607,8 +615,8 @@ void ENplus::loop()
     static uint32_t last_debug = 0;
     static uint32_t nextMillis = 2000;
     static uint32_t last_state_change = millis();
+    static uint8_t evseStatus = 0;
     static uint8_t last_iec61851_state = 0;
-    static uint32_t nextCommand = 12; // Start initialization with Init12 command
     static uint8_t cmd;
     static uint8_t seq;
     static uint16_t len;
@@ -748,41 +756,43 @@ void ENplus::loop()
     PrivCommSend(0xAA, 6, PrivCommTxBuffer);
                 break;
             case 0x03:
-                if(last_iec61851_state != PrivCommRxBuffer[9]) {
-                    last_iec61851_state = PrivCommRxBuffer[9];
+                evseStatus = PrivCommRxBuffer[9];
+                // TODO put this into a function evse_state_update()
+                if(last_iec61851_state != evseStatus) {
+                    last_iec61851_state = evseStatus;
                     last_state_change = millis();
                 }
-                switch (PrivCommRxBuffer[9]) { // status
+                switch (evseStatus) { // status
                     // TODO adapt to EN+ states in web interface
-                    case 1:
-                        evse_state.get("iec61851_state")->updateUint(0);
+                    case 1:                                              // Available (not engaged)
+                        evse_state.get("iec61851_state")->updateUint(0); // Nicht verbunden (Sicht des Fahrzeugs)
                         break;
-                    case 2:
-                        evse_state.get("iec61851_state")->updateUint(1);
+                    case 2:                                              // Preparing (engaged, not started)
+                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
                         break;
-                    case 3:
-                        evse_state.get("iec61851_state")->updateUint(2);
+                    case 3:                                              // Charging (charging ongoing, power output)
+                        evse_state.get("iec61851_state")->updateUint(2); // Lädt
                         break;
-                    case 4:
+                    case 4:                                              // Suspended by charger (started but no power available)
+                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
+                        break;
+                    case 5:                                              // Suspended by EV (power available but waiting for the EV response)
+                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
+                        break;
+                    case 6:                                              // Finishing, charging acomplished (RFID stop or EMS control stop)
+                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
+                        break;
+                    case 7:                                              // (Reserved)
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
-                    case 5:
+                    case 8:                                              // (Unavailable)
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
-                    case 6:
-                        evse_state.get("iec61851_state")->updateUint(4);
-                        break;
-                    case 7:
-                        evse_state.get("iec61851_state")->updateUint(3);
-                        break;
-                    case 8:
-                        evse_state.get("iec61851_state")->updateUint(3);
-                        break;
-                    case 9:
+                    case 9:                                              // Fault (charger in fault condition)
                         evse_state.get("iec61851_state")->updateUint(4);
                         break;
                 }
-                logger.printfln("   cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, PrivCommRxBuffer[9], cmd_03_status[PrivCommRxBuffer[9]]);
+                logger.printfln("   cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, evseStatus, cmd_03_status[evseStatus]);
 //6948        Buffer: FA 03 00 00 03 02 0E 00 00 01 01 00 00 00 00 00 00 00 00 00 04 00 CE C5
 //6949        Rx cmd_03 seq:02 len:14 crc:C5CE
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
@@ -812,6 +822,8 @@ void ENplus::loop()
                 break;
             case 0x08:
                 logger.printfln("   cmd_%.2X seq:%.2X  type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
+                // TODO is it true that cmd_08 only occours if we are charging?
+                evse_state.get("iec61851_state")->updateUint(2); // Lädt
                 if (PrivCommRxBuffer[77] < 10) {  // statistics
                     logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%fV\t%fV\t%fV\t%fA\t%d\t%d\t%d\t",
                               PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
@@ -1011,6 +1023,7 @@ void ENplus::update_evse_state() {
 
     evse_state.get("iec61851_state")->updateUint(iec61851_state);
     evse_state.get("vehicle_state")->updateUint(vehicle_state);
+//logger.printfln("EVSE: vehicle_state %d", vehicle_state);
     evse_state.get("contactor_state")->updateUint(contactor_state);
     bool contactor_error_changed = evse_state.get("contactor_error")->updateUint(contactor_error);
     evse_state.get("charge_release")->updateUint(charge_release);
@@ -1085,6 +1098,20 @@ void ENplus::update_evse_managed() {
     }
 
     evse_managed.get("managed")->updateBool(managed);
+}
+
+void ENplus::update_evse_charge_stats() {
+    if(!initialized)
+        return;
+
+    // trigger status updates from the GD, process them in the regular loop
+    //logger.printfln("   evseStatus: %s   iec61851_state: %d", cmd_03_status[evseStatus], evse_state.get("iec61851_state")->asUint());
+    logger.printfln("   iec61851_state: %d", evse_state.get("iec61851_state")->asUint());
+    if(evse_state.get("iec61851_state")->asUint() == 2) { // if charging
+        PrivCommAck(0x02, PrivCommTxBuffer); // privCommCmdA2InfoSynAck  A2 request status, triggers 03 and 08 answers
+    }
+      //else if (receiveCommandBuffer[1] == '4') sendRequest0E(sendSequence++);  // send A8 40 time 00 00 00 00: trigger 0E answer if charging
+      //else if (receiveCommandBuffer[1] == '7') sendTimeLong();  // AA
 }
 
 void ENplus::update_evse_user_calibration() {
