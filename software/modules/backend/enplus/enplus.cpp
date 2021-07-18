@@ -76,7 +76,7 @@ static const uint16_t crc16_modbus_table[] = {
 };
 
 // evse GD status strings
-    const char *cmd_03_status[] = {
+    const char *evse_status_text[] = {
        "undefined",
        "Available (not engaged)",
        "Preparing (engaged, not started)",
@@ -736,7 +736,7 @@ void ENplus::loop()
     if(cmd_to_process) {
         switch( cmd ) {
             case 0x02: // Info: Serial number, Version
-                logger.printfln("   cmd_%.2X seq:%.2X  Ack Serial number and Version.", cmd, seq);
+                logger.printfln("   cmd_%.2X seq:%.2X Ack Serial number and Version.", cmd, seq);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
                 // TODO extract relevant data
                 logger.printfln("EVSE SN: %s hw: %s fw: %s", PrivCommRxBuffer+8, PrivCommRxBuffer+43, PrivCommRxBuffer+91);
@@ -744,34 +744,17 @@ void ENplus::loop()
 //                if(result != 0) {
 //                    return;
 //                }
-    //ctrl_cmd set heart beat time out
-    PrivCommTxBuffer[PayloadStart + 0] = 0x18;
-    PrivCommTxBuffer[PayloadStart + 1] = 0x08;
-    PrivCommTxBuffer[PayloadStart + 2] = 0x02;
-    PrivCommTxBuffer[PayloadStart + 3] = 0x00;
-    PrivCommTxBuffer[PayloadStart + 4] = 0x1E; // 1E = 30 sec hb timeout, C8 = 200 sec
-    PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
-    PrivCommSend(0xAA, 6, PrivCommTxBuffer);
                 break;
             case 0x03:
                 evseStatus = PrivCommRxBuffer[9];
                 update_evseStatus(evseStatus);
-                logger.printfln("   cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, evseStatus, cmd_03_status[evseStatus]);
-//6948        Buffer: FA 03 00 00 03 02 0E 00 00 01 01 00 00 00 00 00 00 00 00 00 04 00 CE C5
-//6949        Rx cmd_03 seq:02 len:14 crc:C5CE
+                logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
-//[PRIV_COMM, 1859]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 08 07 00 10 15 06 03 10 2C 1B 15 92
-//[PRIV_COMM, 1859]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 0A 07 00 10 15 06 03 10 2C 1C F5 9A
                 break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
-                logger.printfln("   cmd_%.2X seq:%.2X status:%d value:%d  Answer time request / ESP32-GD32 communication heartbeat.", cmd, seq, PrivCommRxBuffer[8], PrivCommRxBuffer[12]);
-                // && PrivCommRxBuffer[9] == 0x01
-                // && PrivCommRxBuffer[10] == 0x00
-                // && PrivCommRxBuffer[11] == 0x00
-                // && PrivCommRxBuffer[12] == 0x00
-                // && PrivCommRxBuffer[13] == 0x00
-                // && PrivCommRxBuffer[14] == 0x00
-                //PrivCommTxBuffer[5] = seq;
+                evseStatus = PrivCommRxBuffer[8];
+                update_evseStatus(evseStatus);
+                logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) value:%d  Answer time request / comm heartbeat", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[12]);
                 {
                     time_t t = now(); // get current time
                     PrivCommTxBuffer[PayloadStart + 0] = 1; // type: 1 = answer ; 0x10 = init
@@ -788,8 +771,8 @@ void ENplus::loop()
                 if (PrivCommRxBuffer[77] < 10) {  // statistics
                     // TODO is it true that PrivCommRxBuffer[77] is the evseStatus?
                     evseStatus = PrivCommRxBuffer[77];
-                    logger.printfln("   cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, evseStatus, cmd_03_status[evseStatus]);
                     update_evseStatus(evseStatus);
+                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
                     logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%fV\t%fV\t%fV\t%fA\t%d\t%d\t%d\t",
                               PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
                               PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87],
@@ -808,7 +791,7 @@ void ENplus::loop()
                               PrivCommRxBuffer[113]+256*PrivCommRxBuffer[114]
                               );
                 } else {
-                    logger.printfln("   cmd_%.2X seq:%.2X  type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
+                    logger.printfln("   cmd_%.2X seq:%.2X type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
                     if (PrivCommRxBuffer[77] == 0x10) {  // RFID card
                         String rfid = "";
                         for (int i=0; i<8; i++) {rfid += PrivCommRxBuffer[40 + i];}  // Card number in bytes 40..47
@@ -832,11 +815,11 @@ void ENplus::loop()
                 logger.printfln("   cmd_%.2X seq:%.2X Heartbeat Timeout:%ds", cmd, seq, PrivCommRxBuffer[12]);
                 break;
             case 0x0E:
-                logger.printfln("   cmd_%.2X seq:%.2X  type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
+                logger.printfln("   cmd_%.2X seq:%.2X type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
                 //logger.printfln("0E: "+printHex8(PrivCommRxBuffer,61)+", cpVolt: "+String(PrivCommRxBuffer[20]+256*PrivCommRxBuffer[21])+", "+String(PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18]));
                 break;
             default:
-                logger.printfln("   cmd_%.2X seq:%.2X  I don't know what to do about it.", cmd, seq);
+                logger.printfln("   cmd_%.2X seq:%.2X I don't know what to do about it.", cmd, seq);
                 break;
         }//switch process cmd
         cmd_to_process = false;
@@ -849,19 +832,19 @@ void ENplus::setup_evse()
 {
     Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
     Serial2.setRxBufferSize(1024);
-    Serial2.setTimeout(180);
+    Serial2.setTimeout(90);
     logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
 
-/*
     //ctrl_cmd set heart beat time out
     PrivCommTxBuffer[PayloadStart + 0] = 0x18;
     PrivCommTxBuffer[PayloadStart + 1] = 0x08;
     PrivCommTxBuffer[PayloadStart + 2] = 0x02;
     PrivCommTxBuffer[PayloadStart + 3] = 0x00;
-    PrivCommTxBuffer[PayloadStart + 4] = 0x1E; // 1E = 30 sec hb timeout, C8 = 200 sec
+    PrivCommTxBuffer[PayloadStart + 4] =   10; // 10 sec hb timeout
     PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
     PrivCommSend(0xAA, 6, PrivCommTxBuffer);
 
+/*
     do { // wait for the first PRIVCOMM signal to decide if we have a GD chip to talk to
         logger.printfln("wait for PrivComm");
         if (Serial2.available() == 0) { delay(250); }
@@ -1110,6 +1093,9 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
             break;
         case 9:                                              // Fault (charger in fault condition)
             evse_state.get("iec61851_state")->updateUint(4);
+            break;
+        default:
+            logger.printfln("err: can not determine EVSE status %d", evseStatus);
             break;
     }
     if(last_iec61851_state != evse_state.get("iec61851_state")->asUint()) {
