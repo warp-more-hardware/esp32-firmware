@@ -58,11 +58,14 @@ private:
     void PrivCommAck(byte cmd, byte *data);
     void sendCommand(byte *data, int datasize);
     void sendTimeLong (void);
+    void update_evseStatus(uint8_t evseStatus);
 
     #define PRIV_COMM_BUFFER_MAX_SIZE 1024
     byte PrivCommRxBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {'0'};
     byte PrivCommTxBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {0xFA, 0x03, 0x00, 0x00}; // Magic byte, Version, 16 bit Address - always the same
     char PrivCommHexBuffer[PRIV_COMM_BUFFER_MAX_SIZE*3] = {'0'};
+
+    uint32_t last_state_change = 0;
 
     bool debug = false;
 

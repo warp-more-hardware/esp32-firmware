@@ -109,7 +109,7 @@ byte Init9[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x7B, 0x89};
 byte Init10[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x3B, 0x9C};
 byte Init11[] = {0xAA, 0x18, 0x2A, 0x00, 0x00};
 byte Init12[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03}; // ?   x mal
-//ack //byte Init13[] = {0xA2, 0x00};
+byte Init13[] = {0xA2, 0x00};
 //ack TODO //byte Init14[] = {0xA3, 0x18, 0x02, 0x06, 0x00, 0x15, 0x06, 0x0A, 0x07, 0x08, 0x26};
 byte Init15[] = {0xAA, 0x18, 0x09, 0x01, 0x00, 0x00};
 
@@ -614,9 +614,7 @@ void ENplus::loop()
     static uint32_t last_check = 0;
     static uint32_t last_debug = 0;
     static uint32_t nextMillis = 2000;
-    static uint32_t last_state_change = millis();
     static uint8_t evseStatus = 0;
-    static uint8_t last_iec61851_state = 0;
     static uint8_t cmd;
     static uint8_t seq;
     static uint16_t len;
@@ -757,41 +755,7 @@ void ENplus::loop()
                 break;
             case 0x03:
                 evseStatus = PrivCommRxBuffer[9];
-                // TODO put this into a function evse_state_update()
-                if(last_iec61851_state != evseStatus) {
-                    last_iec61851_state = evseStatus;
-                    last_state_change = millis();
-                }
-                switch (evseStatus) { // status
-                    // TODO adapt to EN+ states in web interface
-                    case 1:                                              // Available (not engaged)
-                        evse_state.get("iec61851_state")->updateUint(0); // Nicht verbunden (Sicht des Fahrzeugs)
-                        break;
-                    case 2:                                              // Preparing (engaged, not started)
-                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
-                        break;
-                    case 3:                                              // Charging (charging ongoing, power output)
-                        evse_state.get("iec61851_state")->updateUint(2); // Lädt
-                        break;
-                    case 4:                                              // Suspended by charger (started but no power available)
-                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
-                        break;
-                    case 5:                                              // Suspended by EV (power available but waiting for the EV response)
-                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
-                        break;
-                    case 6:                                              // Finishing, charging acomplished (RFID stop or EMS control stop)
-                        evse_state.get("iec61851_state")->updateUint(1); // Verbunden
-                        break;
-                    case 7:                                              // (Reserved)
-                        evse_state.get("iec61851_state")->updateUint(4);
-                        break;
-                    case 8:                                              // (Unavailable)
-                        evse_state.get("iec61851_state")->updateUint(4);
-                        break;
-                    case 9:                                              // Fault (charger in fault condition)
-                        evse_state.get("iec61851_state")->updateUint(4);
-                        break;
-                }
+                update_evseStatus(evseStatus);
                 logger.printfln("   cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, evseStatus, cmd_03_status[evseStatus]);
 //6948        Buffer: FA 03 00 00 03 02 0E 00 00 01 01 00 00 00 00 00 00 00 00 00 04 00 CE C5
 //6949        Rx cmd_03 seq:02 len:14 crc:C5CE
@@ -821,10 +785,11 @@ void ENplus::loop()
                 }
                 break;
             case 0x08:
-                logger.printfln("   cmd_%.2X seq:%.2X  type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
-                // TODO is it true that cmd_08 only occours if we are charging?
-                evse_state.get("iec61851_state")->updateUint(2); // Lädt
                 if (PrivCommRxBuffer[77] < 10) {  // statistics
+                    // TODO is it true that PrivCommRxBuffer[77] is the evseStatus?
+                    evseStatus = PrivCommRxBuffer[77];
+                    logger.printfln("   cmd_%.2X seq:%.2X  status:%.2X (%s).", cmd, seq, evseStatus, cmd_03_status[evseStatus]);
+                    update_evseStatus(evseStatus);
                     logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%fV\t%fV\t%fV\t%fA\t%d\t%d\t%d\t",
                               PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
                               PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87],
@@ -842,11 +807,13 @@ void ENplus::loop()
                               PrivCommRxBuffer[110]+256*PrivCommRxBuffer[111],
                               PrivCommRxBuffer[113]+256*PrivCommRxBuffer[114]
                               );
-                }
-                else if (PrivCommRxBuffer[77] == 0x10) {  // RFID card
-                  String rfid = "";
-                  for (int i=0; i<8; i++) {rfid += PrivCommRxBuffer[40 + i];}  // Card number in bytes 40..47
-                  logger.printfln("RFID Card %s", rfid);
+                } else {
+                    logger.printfln("   cmd_%.2X seq:%.2X  type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
+                    if (PrivCommRxBuffer[77] == 0x10) {  // RFID card
+                        String rfid = "";
+                        for (int i=0; i<8; i++) {rfid += PrivCommRxBuffer[40 + i];}  // Card number in bytes 40..47
+                        logger.printfln("RFID Card %s", rfid);
+                    }
                 }
                 break;
             case 0x09:
@@ -1105,13 +1072,49 @@ void ENplus::update_evse_charge_stats() {
         return;
 
     // trigger status updates from the GD, process them in the regular loop
-    //logger.printfln("   evseStatus: %s   iec61851_state: %d", cmd_03_status[evseStatus], evse_state.get("iec61851_state")->asUint());
     logger.printfln("   iec61851_state: %d", evse_state.get("iec61851_state")->asUint());
     if(evse_state.get("iec61851_state")->asUint() == 2) { // if charging
+        // TODO only one should be needed, but even both do not seem to work :-(
         PrivCommAck(0x02, PrivCommTxBuffer); // privCommCmdA2InfoSynAck  A2 request status, triggers 03 and 08 answers
+        sendCommand(Init13, sizeof(Init13));
+        //sendRequest0E(sendSequence++);  // send A8 40 time 00 00 00 00: trigger 0E answer if charging
     }
-      //else if (receiveCommandBuffer[1] == '4') sendRequest0E(sendSequence++);  // send A8 40 time 00 00 00 00: trigger 0E answer if charging
-      //else if (receiveCommandBuffer[1] == '7') sendTimeLong();  // AA
+}
+
+void ENplus::update_evseStatus(uint8_t evseStatus) {
+    uint8_t last_iec61851_state = evse_state.get("iec61851_state")->asUint();
+    switch (evseStatus) {
+        case 1:                                              // Available (not engaged)
+            evse_state.get("iec61851_state")->updateUint(0); // Nicht verbunden (Sicht des Fahrzeugs)
+            break;
+        case 2:                                              // Preparing (engaged, not started)
+            evse_state.get("iec61851_state")->updateUint(1); // Verbunden
+            break;
+        case 3:                                              // Charging (charging ongoing, power output)
+            evse_state.get("iec61851_state")->updateUint(2); // Lädt
+            break;
+        case 4:                                              // Suspended by charger (started but no power available)
+            evse_state.get("iec61851_state")->updateUint(1); // Verbunden
+            break;
+        case 5:                                              // Suspended by EV (power available but waiting for the EV response)
+            evse_state.get("iec61851_state")->updateUint(1); // Verbunden
+            break;
+        case 6:                                              // Finishing, charging acomplished (RFID stop or EMS control stop)
+            evse_state.get("iec61851_state")->updateUint(1); // Verbunden
+            break;
+        case 7:                                              // (Reserved)
+            evse_state.get("iec61851_state")->updateUint(4);
+            break;
+        case 8:                                              // (Unavailable)
+            evse_state.get("iec61851_state")->updateUint(4);
+            break;
+        case 9:                                              // Fault (charger in fault condition)
+            evse_state.get("iec61851_state")->updateUint(4);
+            break;
+    }
+    if(last_iec61851_state != evse_state.get("iec61851_state")->asUint()) {
+        last_state_change = millis();
+    }
 }
 
 void ENplus::update_evse_user_calibration() {
