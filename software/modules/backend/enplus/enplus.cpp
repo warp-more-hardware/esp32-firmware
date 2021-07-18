@@ -282,6 +282,7 @@ ENplus::ENplus()
         {"error_state", Config::Uint8(0)},
         {"lock_state", Config::Uint8(0)},
         {"time_since_state_change", Config::Uint32(0)},
+        {"last_state_change", Config::Uint32(0)},
         {"uptime", Config::Uint32(0)}
     });
 
@@ -825,7 +826,7 @@ void ENplus::loop()
         cmd_to_process = false;
     }
 
-    evse_state.get("time_since_state_change")->updateUint(millis() - last_state_change);
+    evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
 }
 
 void ENplus::setup_evse()
@@ -852,6 +853,7 @@ void ENplus::setup_evse()
 */
 
     // TODO start: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
+    setTime(23,59,00,31,12,2018);
     switch (timeStatus()){
         case timeNotSet:
             logger.printfln("the time has never been set, the clock started on Jan 1, 1970");
@@ -1055,7 +1057,7 @@ void ENplus::update_evse_charge_stats() {
         return;
 
     // trigger status updates from the GD, process them in the regular loop
-    logger.printfln("   iec61851_state: %d", evse_state.get("iec61851_state")->asUint());
+    //logger.printfln("   iec61851_state: %d", evse_state.get("iec61851_state")->asUint());
     if(evse_state.get("iec61851_state")->asUint() == 2) { // if charging
         // TODO only one should be needed, but even both do not seem to work :-(
         PrivCommAck(0x02, PrivCommTxBuffer); // privCommCmdA2InfoSynAck  A2 request status, triggers 03 and 08 answers
@@ -1099,7 +1101,8 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
             break;
     }
     if(last_iec61851_state != evse_state.get("iec61851_state")->asUint()) {
-        last_state_change = millis();
+        evse_state.get("last_state_change")->updateUint(millis());
+        evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
     }
 }
 
