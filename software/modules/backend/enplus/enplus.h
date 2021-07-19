@@ -65,12 +65,11 @@ private:
     byte PrivCommTxBuffer[PRIV_COMM_BUFFER_MAX_SIZE] = {0xFA, 0x03, 0x00, 0x00}; // Magic byte, Version, 16 bit Address - always the same
     char PrivCommHexBuffer[PRIV_COMM_BUFFER_MAX_SIZE*3] = {'0'};
 
-    uint32_t last_state_change = 0;
-
     bool debug = false;
 
     int bs_evse_start_charging(TF_EVSE *evse);
     int bs_evse_stop_charging(TF_EVSE *evse);
+    int bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart);
     int bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current);
     int bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime);
 
