@@ -108,7 +108,13 @@ byte Init8[] = {0xAA, 0x18, 0x25, 0x0E, 0x00, 0x05, 0x00, 0x00, 0x00, 0x05, 0x00
 byte Init9[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x7B, 0x89};
 
 byte Init10[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x3B, 0x9C}; // is Init10 the same as Init12?
-byte Init12[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03}; // why more than once?
+
+// ctrl_cmd set ack done, type:0
+//[2019-01-01 03:36:46] cmd_AA [privCommCmdAACfgCtrl]!
+//[2019-01-01 03:36:46] cfg ctrl  addr:18 size:1 set:1 gun_id:0 len:1
+//[2019-01-01 03:36:46] cfg ctrl_ack start_addr:18 end_addr:19 now_addr:18 set:1 gun_id:0 len:1
+//[2019-01-01 03:36:46] ctrl_cmd:18 setType:1 [cmdAACtrlSetReset]!
+byte Init12[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03}; // this triggers 0x02 SN, Hardware, Version
 //W (1970-01-01 00:08:47) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 03 05 00 18 12 01 00 03 FB F6
 //W (1970-01-01 00:08:48) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 03 05 00 14 12 01 00 00 53 F1
 //I (1970-01-01 00:08:48) [PRIV_COMM, 51]: ctrl_cmd set ack done, type:0
@@ -119,10 +125,13 @@ byte Init12[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03}; // why more than once?
 //W (1970-01-01 00:08:49) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 05 05 00 14 12 01 00 00 D3 DB
 //I (1970-01-01 00:08:49) [PRIV_COMM, 51]: ctrl_cmd set ack done, type:0
 
-byte Init11[] = {0xAA, 0x18, 0x2A, 0x00, 0x00}; // set time
+// cmdAACtrlcantestsetAck test cancom...111
+byte Init11[] = {0xAA, 0x18, 0x2A, 0x00, 0x00};
+
 byte Init13[] = {0xA2, 0x00}; // is this just an ack for 0x02?
 //ack for 03  //byte Init14[] = {0xA3, 0x18, 0x02, 0x06, 0x00, 0x15, 0x06, 0x0A, 0x07, 0x08, 0x26};
 
+// ctrl_cmd set start power mode done
 byte Init15[] = {0xAA, 0x18, 0x09, 0x01, 0x00, 0x00};
 //W (2021-04-11 18:36:27) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 40 05 00 18 09 01 00 00 F9 36
 //W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 40 05 00 14 09 01 00 00 11 30
@@ -312,6 +321,9 @@ ENplus::ENplus()
     });
 
     evse_hardware_configuration = Config::Object({
+        {"Hardware", Config::Str("",100)},
+        {"FirmwareVersion", Config::Str("",100)},
+        {"SerialNumber", Config::Str("",100)},
         {"jumper_configuration", Config::Uint8(3)}, // 3 = 16 Ampere = 11KW for the EN+ wallbox
         {"has_lock_switch", Config::Bool(false)}    // no key lock switch
     });
@@ -589,19 +601,19 @@ void ENplus::register_urls()
     }, false);
 
     api.addCommand("evse/current_limit", &evse_current_limit, {}, [this](){
-        is_in_bootloader(bs_evse_set_max_charging_current(&evse, evse_current_limit.get("current")->asUint()));
+        bs_evse_set_max_charging_current(&evse, evse_current_limit.get("current")->asUint());
     }, false);
 
     api.addCommand("evse/stop_charging", &evse_stop_charging, {}, [this](){bs_evse_stop_charging(&evse);}, true);
     api.addCommand("evse/start_charging", &evse_start_charging, {}, [this](){bs_evse_start_charging(&evse);}, true);
 /*
     api.addCommand("evse/managed_current_update", &evse_managed_current, {}, [this](){
-        is_in_bootloader(tf_evse_set_managed_current(&evse, evse_managed_current.get("current")->asUint()));
+        tf_evse_set_managed_current(&evse, evse_managed_current.get("current")->asUint());
     }, true);
 
     api.addState("evse/managed", &evse_managed, {}, 1000);
     api.addCommand("evse/managed_update", &evse_managed_update, {"password"}, [this](){
-        is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
+        tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint());
     }, true);
 */
 
@@ -610,7 +622,7 @@ void ENplus::register_urls()
         int16_t resistance_880[14];
         evse_user_calibration.get("resistance_880")->fillArray<int16_t, Config::ConfInt>(resistance_880, sizeof(resistance_880)/sizeof(resistance_880[0]));
 
-        is_in_bootloader(tf_evse_set_user_calibration(&evse,
+        tf_evse_set_user_calibration(&evse,
             0xCA11B4A0,
             evse_user_calibration.get("user_calibration_active")->asBool(),
             evse_user_calibration.get("voltage_diff")->asInt(),
@@ -618,7 +630,7 @@ void ENplus::register_urls()
             evse_user_calibration.get("voltage_div")->asInt(),
             evse_user_calibration.get("resistance_2700")->asInt(),
             resistance_880
-            ));
+            );
     }, true);
 
     server.on("/evse/start_debug", HTTP_GET, [this](AsyncWebServerRequest *request) {
@@ -654,8 +666,7 @@ void ENplus::loop()
 
     if(evse_found && !initialized && deadline_elapsed(last_check + 10000)) {
         last_check = millis();
-        if(!is_in_bootloader(TF_E_TIMEOUT))
-            setup_evse();
+        setup_evse();
     }
 
     if(debug && deadline_elapsed(last_debug + 50)) {
@@ -761,6 +772,8 @@ void ENplus::loop()
         } while((Serial2.available() > 0) && !cmd_to_process && PrivCommRxBufferPointer<sizeof(PrivCommRxBuffer)/sizeof(PrivCommRxBuffer[0])); // one command at a time
     }
 
+    char tmp[20];
+
     if(cmd_to_process) {
         switch( cmd ) {
             case 0x02: // Info: Serial number, Version
@@ -768,12 +781,20 @@ void ENplus::loop()
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A2 len:11) :  FA 03 00 00 A2 26 01 00 00 99 E0
                 logger.printfln("   cmd_%.2X seq:%.2X Ack Serial number and Version.", cmd, seq);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
-                // TODO extract relevant data
-                logger.printfln("EVSE SN: %s hw: %s fw: %s", PrivCommRxBuffer+8, PrivCommRxBuffer+43, PrivCommRxBuffer+91);
-//                int result = ensure_matching_firmware(&hal, uid, "EVSE", "EVSE", evse_firmware_version, / *evse_bricklet_firmware_bin, evse_bricklet_firmware_bin_len,* / &logger);
-//                if(result != 0) {
-//                    return;
-//                }
+                sprintf(tmp, "%s", PrivCommRxBuffer+8);
+                evse_hardware_configuration.get("SerialNumber")->updateString(tmp);
+                sprintf(tmp, "%s",PrivCommRxBuffer+43);
+                evse_hardware_configuration.get("Hardware")->updateString(tmp);
+                sprintf(tmp, "%s",PrivCommRxBuffer+91);
+                evse_hardware_configuration.get("FirmwareVersion")->updateString(tmp);
+                logger.printfln("EVSE serial: %s hw: %s fw: %s", 
+                    evse_hardware_configuration.get("SerialNumber")->asString(),
+                    evse_hardware_configuration.get("Hardware")->asString(),
+                    evse_hardware_configuration.get("FirmwareVersion")->asString());
+                initialized = 
+                    "AC011K-AU-25" == evse_hardware_configuration.get("Hardware")->asString()           && 
+                    ( "1.1.27"     == evse_hardware_configuration.get("FirmwareVersion")->asString()    ||
+                      "1.1.258"    == evse_hardware_configuration.get("FirmwareVersion")->asString()    );
                 break;
             case 0x03:
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1919]: Rx(cmd_03 len:24) :  FA 03 00 00 03 27 0E 00 00 09 09 0D 00 00 02 00 00 00 00 00 04 00 80 BC
@@ -846,7 +867,47 @@ void ENplus::loop()
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA9RecordAck
                 break;
             case 0x0A:
-                logger.printfln("   cmd_%.2X seq:%.2X Heartbeat Timeout:%ds", cmd, seq, PrivCommRxBuffer[12]);
+                switch( PrivCommRxBuffer[9] ) { // 8: always 14, 9: answertype?
+                    case 0x02: // answer to set time
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1764]: Tx(cmd_AA len:20) :  FA 03 00 00 AA 09 0A 00 18 02 06 00 15 04 0B 12 24 1B 5C 78
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:20) :  FA 03 00 00 0A 09 0A 00 14 02 06 00 15 04 0B 12 24 1B 3C E7
+//I (2021-04-11 18:36:27) [PRIV_COMM, 94]: ctrl_cmd set time done -> time: 2021-04-11 18:36:27
+    // ctrl_cmd set start power mode done
+                        logger.printfln("   cmd_%.2X seq:%.2X Set Time done", cmd, seq);
+                        break;
+                    case 0x08: // answer to set hb timeout
+//W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:16) :  FA 03 00 00 AA 07 06 00 18 08 02 00 1E 00 95 80
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:16) :  FA 03 00 00 0A 07 06 00 14 08 02 00 1E 00 93 CE
+//I (2021-04-11 18:36:27) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30      (=1E)
+                        logger.printfln("   cmd_%.2X seq:%.2X Heartbeat Timeout:%ds", cmd, seq, PrivCommRxBuffer[12]);
+                        break;
+                    case 0x09: // answer to ctrl_cmd set start power mode
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 40 05 00 18 09 01 00 00 F9 36
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 40 05 00 14 09 01 00 00 11 30
+//I (2021-04-11 18:36:27) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower:  3.150.080
+
+//W (2021-04-11 18:36:30) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 42 05 00 18 09 01 00 00 78 EF
+//W (2021-04-11 18:36:31) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 42 05 00 14 09 01 00 00 90 E9
+//I (2021-04-11 18:36:31) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 15.306.752
+                        logger.printfln("   cmd_%.2X seq:%.2X ctrl_cmd set start power mode done", cmd, seq);
+                        break;
+                    case 0x12: // ctrl_cmd set ack done, type:0
+//W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 08 05 00 18 12 01 00 03 BA 45
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 08 05 00 14 12 01 00 00 12 42
+//I (2021-04-11 18:36:27) [PRIV_COMM, 51]: ctrl_cmd set ack done, type:0
+                        logger.printfln("   cmd_%.2X seq:%.2X ctrl_cmd set ack done, type:0", cmd, seq);
+                        break;
+                    case 0x2A: // answer to cmdAACtrlcantestsetAck test cancom...111
+//W (1970-01-01 00:00:03) [PRIV_COMM, 1764]: Tx(cmd_AA len:14) :  FA 03 00 00 AA 02 04 00 18 2A 00 00 DB 76
+//W (1970-01-01 00:00:03) [PRIV_COMM, 1919]: Rx(cmd_0A len:14) :  FA 03 00 00 0A 02 04 00 14 2A 00 00 D2 5E
+//E (1970-01-01 00:00:03) [PRIV_COMM, 78]: cmdAACtrlcantestsetAck test cancom...111
+    // cmdAACtrlcantestsetAck test cancom...111
+                        logger.printfln("   cmd_%.2X seq:%.2X cmdAACtrlcantestsetAck test cancom...111 done", cmd, seq);
+                        break;
+                    default:
+                        logger.printfln("   cmd_%.2X seq:%.2X I don't know what %.2X means.", cmd, seq, PrivCommRxBuffer[9]);
+                        break;
+                }//switch cmdAA answer processing
                 break;
             case 0x0E:
                 logger.printfln("   cmd_%.2X seq:%.2X type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
@@ -869,45 +930,6 @@ void ENplus::setup_evse()
     Serial2.setTimeout(90);
     logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
 
-//W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:16) :  FA 03 00 00 AA 07 06 00 18 08 02 00 1E 00 95 80
-//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:16) :  FA 03 00 00 0A 07 06 00 14 08 02 00 1E 00 93 CE
-//I (2021-04-11 18:36:27) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30      (=1E)
-
-    //ctrl_cmd set heart beat time out
-    PrivCommTxBuffer[PayloadStart + 0] = 0x18;
-    PrivCommTxBuffer[PayloadStart + 1] = 0x08;
-    PrivCommTxBuffer[PayloadStart + 2] = 0x02;
-    PrivCommTxBuffer[PayloadStart + 3] = 0x00;
-    PrivCommTxBuffer[PayloadStart + 4] =   10; // 10 sec hb timeout
-    PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
-    PrivCommSend(0xAA, 6, PrivCommTxBuffer);
-
-//W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 08 05 00 18 12 01 00 03 BA 45
-//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 08 05 00 14 12 01 00 00 12 42
-//I (2021-04-11 18:36:27) [PRIV_COMM, 51]: ctrl_cmd set ack done, type:0
-
-//W (2021-04-11 18:36:27) [PRIV_COMM, 1764]: Tx(cmd_AA len:20) :  FA 03 00 00 AA 09 0A 00 18 02 06 00 15 04 0B 12 24 1B 5C 78
-//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:20) :  FA 03 00 00 0A 09 0A 00 14 02 06 00 15 04 0B 12 24 1B 3C E7
-//I (2021-04-11 18:36:27) [PRIV_COMM, 94]: ctrl_cmd set time done -> time: 2021-04-11 18:36:27
-
-//W (2021-04-11 18:36:27) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 40 05 00 18 09 01 00 00 F9 36
-//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 40 05 00 14 09 01 00 00 11 30
-//I (2021-04-11 18:36:27) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 3150080
-
-//W (2021-04-11 18:36:30) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 42 05 00 18 09 01 00 00 78 EF
-//W (2021-04-11 18:36:31) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 42 05 00 14 09 01 00 00 90 E9
-//I (2021-04-11 18:36:31) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 15306752
-
-//W (1970-01-01 00:00:03) [PRIV_COMM, 1764]: Tx(cmd_AA len:14) :  FA 03 00 00 AA 02 04 00 18 2A 00 00 DB 76
-//W (1970-01-01 00:00:03) [PRIV_COMM, 1919]: Rx(cmd_0A len:14) :  FA 03 00 00 0A 02 04 00 14 2A 00 00 D2 5E
-//E (1970-01-01 00:00:03) [PRIV_COMM, 78]: cmdAACtrlcantestsetAck test cancom...111
-
-/*
-    do { // wait for the first PRIVCOMM signal to decide if we have a GD chip to talk to
-        logger.printfln("wait for PrivComm");
-        if (Serial2.available() == 0) { delay(250); }
-    } while(Serial2.available() == 0 && millis()<10000); // TODO disable EVSE in case of no show
-*/
 
     // TODO start: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
     setTime(23,59,00,31,12,2018);
@@ -927,14 +949,68 @@ void ENplus::setup_evse()
     // TODO end: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
 
 
-    char uid[7] = {0}; // put SN here?
+//W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 08 05 00 18 12 01 00 03 BA 45
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 08 05 00 14 12 01 00 00 12 42
+//I (2021-04-11 18:36:27) [PRIV_COMM, 51]: ctrl_cmd set ack done, type:0
+
+    // ctrl_cmd set ack done, type:0 // this triggers 0x02 SN, Hardware, Version
+    sendCommand(Init12, sizeof(Init12));
+
+
+//W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:16) :  FA 03 00 00 AA 07 06 00 18 08 02 00 1E 00 95 80
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:16) :  FA 03 00 00 0A 07 06 00 14 08 02 00 1E 00 93 CE
+//I (2021-04-11 18:36:27) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30      (=1E)
+
+    // ctrl_cmd set heart beat time out
+    PrivCommTxBuffer[PayloadStart + 0] = 0x18;
+    PrivCommTxBuffer[PayloadStart + 1] = 0x08;
+    PrivCommTxBuffer[PayloadStart + 2] = 0x02;
+    PrivCommTxBuffer[PayloadStart + 3] = 0x00;
+    PrivCommTxBuffer[PayloadStart + 4] =   10; // 10 sec hb timeout
+    PrivCommTxBuffer[PayloadStart + 5] = 0x00; // hb timeout 16bit?
+    PrivCommSend(0xAA, 6, PrivCommTxBuffer);
+
+
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1764]: Tx(cmd_AA len:20) :  FA 03 00 00 AA 09 0A 00 18 02 06 00 15 04 0B 12 24 1B 5C 78
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:20) :  FA 03 00 00 0A 09 0A 00 14 02 06 00 15 04 0B 12 24 1B 3C E7
+//I (2021-04-11 18:36:27) [PRIV_COMM, 94]: ctrl_cmd set time done -> time: 2021-04-11 18:36:27
+
+    sendTimeLong();
+
+
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 40 05 00 18 09 01 00 00 F9 36
+//W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 40 05 00 14 09 01 00 00 11 30
+//I (2021-04-11 18:36:27) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower:  3.150.080
+
+//W (2021-04-11 18:36:30) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 42 05 00 18 09 01 00 00 78 EF
+//W (2021-04-11 18:36:31) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 42 05 00 14 09 01 00 00 90 E9
+//I (2021-04-11 18:36:31) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 15.306.752
+
+    // ctrl_cmd set start power mode done
+    sendCommand(Init15, sizeof(Init15));
+
+
+//W (1970-01-01 00:00:03) [PRIV_COMM, 1764]: Tx(cmd_AA len:14) :  FA 03 00 00 AA 02 04 00 18 2A 00 00 DB 76
+//W (1970-01-01 00:00:03) [PRIV_COMM, 1919]: Rx(cmd_0A len:14) :  FA 03 00 00 0A 02 04 00 14 2A 00 00 D2 5E
+//E (1970-01-01 00:00:03) [PRIV_COMM, 78]: cmdAACtrlcantestsetAck test cancom...111
+
+    // cmdAACtrlcantestsetAck test cancom...111
+    sendCommand(Init11, sizeof(Init11));
+
+/*
+    do { // wait for the first PRIVCOMM signal to decide if we have a GD chip to talk to
+        logger.printfln("wait for PrivComm");
+        if (Serial2.available() == 0) { delay(250); }
+    } while(Serial2.available() == 0 && millis()<10000); // TODO disable EVSE in case of no show
+*/
+
+
     //int result = tf_evse_create(&evse, uid, &hal);
 //    if(result != TF_E_OK) {
 //        logger.printfln("Failed to initialize EVSE bricklet. Disabling EVSE support.");
 //        return;
 //    }
 
-      initialized = true;
 }
 
 void ENplus::update_evse_low_level_state() {
@@ -958,11 +1034,6 @@ void ENplus::update_evse_low_level_state() {
 //        voltages,
 //        resistances,
 //        gpio);
-//
-//    if(rc != TF_E_OK) {
-//        is_in_bootloader(rc);
-//        return;
-//    }
 
         low_level_mode_enabled = true;
         led_state = 1;
@@ -1015,11 +1086,6 @@ void ENplus::update_evse_state() {
         &lock_state,
         &time_since_state_change,
         &uptime);
-
-    if(rc != TF_E_OK) {
-        is_in_bootloader(rc);
-        return;
-    }
 
     firmware_update_allowed = vehicle_state == 0;
 
@@ -1075,11 +1141,6 @@ void ENplus::update_evse_auto_start_charging() {
 
 //    int rc = tf_evse_get_charging_autostart(&evse,
 //        &auto_start_charging);
-//
-//    if(rc != TF_E_OK) {
-//        is_in_bootloader(rc);
-//        return;
-//    }
 
     //auto_start_charging = false;
 
@@ -1093,11 +1154,6 @@ void ENplus::update_evse_managed() {
 
     int rc = tf_evse_get_managed(&evse,
         &managed);
-
-    if(rc != TF_E_OK) {
-        is_in_bootloader(rc);
-        return;
-    }
 
     evse_managed.get("managed")->updateBool(managed);
 }
@@ -1172,11 +1228,6 @@ void ENplus::update_evse_user_calibration() {
         &resistance_2700,
         resistance_880);
 
-    if(rc != TF_E_OK) {
-        is_in_bootloader(rc);
-        return;
-    }
-
     evse_user_calibration.get("user_calibration_active")->updateBool(user_calibration_active);
     evse_user_calibration.get("voltage_diff")->updateInt(voltage_diff);
     evse_user_calibration.get("voltage_mul")->updateInt(voltage_mul);
@@ -1189,19 +1240,4 @@ void ENplus::update_evse_user_calibration() {
 
 bool ENplus::is_in_bootloader(int rc) {
     return false;
-
-    if(rc != TF_E_TIMEOUT && rc != TF_E_NOT_SUPPORTED)
-        return false;
-
-    uint8_t mode;
-    int bootloader_rc = tf_evse_get_bootloader_mode(&evse, &mode);
-    if(bootloader_rc != TF_E_OK) {
-        return false;
-    }
-
-    if(mode != TF_EVSE_BOOTLOADER_MODE_FIRMWARE) {
-        initialized = false;
-    }
-
-    return mode != TF_EVSE_BOOTLOADER_MODE_FIRMWARE;
 }
