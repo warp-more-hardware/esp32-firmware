@@ -321,9 +321,11 @@ ENplus::ENplus()
     });
 
     evse_hardware_configuration = Config::Object({
-        {"Hardware", Config::Str("",100)},
-        {"FirmwareVersion", Config::Str("",100)},
-        {"SerialNumber", Config::Str("",100)},
+        {"Hardware", Config::Str("",20)},
+        {"FirmwareVersion", Config::Str("",20)},
+        {"SerialNumber", Config::Str("",20)},
+        {"evse_found", Config::Bool(false)},
+        {"initialized", Config::Bool(false)},
         {"jumper_configuration", Config::Uint8(3)}, // 3 = 16 Ampere = 11KW for the EN+ wallbox
         {"has_lock_switch", Config::Bool(false)}    // no key lock switch
     });
@@ -756,7 +758,7 @@ void ENplus::loop()
                             if(!evse_found) {
                                 logger.printfln("EN+ GD EVSE found. Enabling EVSE support.");
                                 evse_found = true;
-                                register_urls();
+                                evse_hardware_configuration.get("evse_found")->updateBool(evse_found);
                             }
                             logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X", cmd, seq, len, crc);
                         } else {
@@ -772,7 +774,7 @@ void ENplus::loop()
         } while((Serial2.available() > 0) && !cmd_to_process && PrivCommRxBufferPointer<sizeof(PrivCommRxBuffer)/sizeof(PrivCommRxBuffer[0])); // one command at a time
     }
 
-    char tmp[20];
+    char str[20];
 
     if(cmd_to_process) {
         switch( cmd ) {
@@ -781,20 +783,35 @@ void ENplus::loop()
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A2 len:11) :  FA 03 00 00 A2 26 01 00 00 99 E0
                 logger.printfln("   cmd_%.2X seq:%.2X Ack Serial number and Version.", cmd, seq);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
-                sprintf(tmp, "%s", PrivCommRxBuffer+8);
-                evse_hardware_configuration.get("SerialNumber")->updateString(tmp);
-                sprintf(tmp, "%s",PrivCommRxBuffer+43);
-                evse_hardware_configuration.get("Hardware")->updateString(tmp);
-                sprintf(tmp, "%s",PrivCommRxBuffer+91);
-                evse_hardware_configuration.get("FirmwareVersion")->updateString(tmp);
+                sprintf(str, "%s", PrivCommRxBuffer+8);
+                logger.printfln("EVSE Serial: %s %s", str, evse_hardware_configuration.get("SerialNumber")->asString());
+                evse_hardware_configuration.get("SerialNumber")->updateString(str);
+                sprintf(str, "%s",PrivCommRxBuffer+43);
+                logger.printfln("EVSE Hardware: %s", str);
+                evse_hardware_configuration.get("Hardware")->updateString(str);
+                sprintf(str, "%s",PrivCommRxBuffer+91);
+                logger.printfln("EVSE FirmwareVersion: %s", str);
+                evse_hardware_configuration.get("FirmwareVersion")->updateString(str);
                 logger.printfln("EVSE serial: %s hw: %s fw: %s", 
                     evse_hardware_configuration.get("SerialNumber")->asString(),
                     evse_hardware_configuration.get("Hardware")->asString(),
                     evse_hardware_configuration.get("FirmwareVersion")->asString());
-                initialized = 
-                    "AC011K-AU-25" == evse_hardware_configuration.get("Hardware")->asString()           && 
-                    ( "1.1.27"     == evse_hardware_configuration.get("FirmwareVersion")->asString()    ||
-                      "1.1.258"    == evse_hardware_configuration.get("FirmwareVersion")->asString()    );
+                if(!evse_hardware_configuration.get("initialized")->asBool()) {
+                    logger.printfln("Hardware == AC011K-AU-25 : %s", evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0 ? "true" : "false");
+                    logger.printfln("FirmwareVersion == 1.1.27 : %s", evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.27") == 0 ? "true" : "false");
+                    logger.printfln("FirmwareVersion == 1.1.258 : %s", evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.258") == 0 ? "true" : "false");
+                    initialized =
+                        evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
+                        (evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.27") == 0    ||
+                         evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.258") == 0   );
+                    evse_hardware_configuration.get("initialized")->updateBool(initialized);
+                    if(initialized) {
+                         logger.printfln("EN+ GD EVSE initialized.");
+                         register_urls();
+                    } else {
+                         logger.printfln("EN+ GD EVSE Firmware Version or Hardware is not supported.");
+                    }
+                }
                 break;
             case 0x03:
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1919]: Rx(cmd_03 len:24) :  FA 03 00 00 03 27 0E 00 00 09 09 0D 00 00 02 00 00 00 00 00 04 00 80 BC
@@ -822,12 +839,24 @@ void ENplus::loop()
                     PrivCommSend(0xA4, 7, PrivCommTxBuffer); // privCommCmdA4HBAck
                 }
                 break;
+            case 0x05:
+                // Command 05, payload 37 30 38 36 36 31 65 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+                sprintf(str, "%s", PrivCommRxBuffer+8);
+                logger.printfln("   cmd_%.2X seq:%.2X RFID card detected. ID: %s", cmd, seq, str);
+                break;
+            case 0x07:
+                logger.printfln("   cmd_%.2X seq:%.2X Charging started", cmd, seq);
+                  //+"at "+String(message[74]+2000)+"/"+String(message[75])+"/"+String(message[76])+" "+String(message[77])+":"+String(message[78])+":"+String(message[79])
+                  //+", startMode(?): "+String(message[73])  // 0:app, 1:card, 2:vin
+                  //+", meter start: "+String(message[80]+256*message[81])+"Wh"
+                  //);
+                break;
             case 0x08:
                 if (PrivCommRxBuffer[77] < 10) {  // statistics
                     // TODO is it true that PrivCommRxBuffer[77] is the evseStatus?
                     evseStatus = PrivCommRxBuffer[77];
                     update_evseStatus(evseStatus);
-                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
+                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s)", cmd, seq, evseStatus, evse_status_text[evseStatus]);
                     logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%fV\t%fV\t%fV\t%fA\t%d\t%d\t%d\t",
                               PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
                               PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87],
@@ -1011,6 +1040,7 @@ void ENplus::setup_evse()
 //        return;
 //    }
 
+    initialized = true;
 }
 
 void ENplus::update_evse_low_level_state() {
