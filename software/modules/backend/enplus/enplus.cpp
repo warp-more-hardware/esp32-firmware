@@ -483,6 +483,9 @@ void ENplus::setup()
 {
     setup_evse();
 
+    api.restorePersistentConfig("evse/config", &evse_auto_start_charging);
+    logger.printfln("EVSE auto start charging is %s", evse_auto_start_charging.get("auto_start_charging")->asBool() ? "true" :"false");
+
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
         update_evse_state();
     }, 0, 1000);
@@ -590,6 +593,8 @@ void ENplus::register_urls()
 {
     if (!evse_found)
         return;
+
+    api.addPersistentConfig("evse/config", &evse_auto_start_charging, {}, 1000);
 
     api.addState("evse/state", &evse_state, {}, 1000);
     api.addState("evse/hardware_configuration", &evse_hardware_configuration, {}, 1000);
@@ -1174,6 +1179,7 @@ void ENplus::update_evse_auto_start_charging() {
 
     //auto_start_charging = false;
 
+    logger.printfln("EVSE auto start charging is %s", evse_auto_start_charging.get("auto_start_charging")->asBool() ? "true" :"false");
     //evse_auto_start_charging.get("auto_start_charging")->updateBool(auto_start_charging);
 }
 
