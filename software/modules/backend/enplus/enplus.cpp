@@ -963,8 +963,17 @@ void ENplus::loop()
                 }//switch cmdAA answer processing
                 break;
             case 0x0E:
-                logger.printfln("   cmd_%.2X seq:%.2X type:%.2X", cmd, seq, PrivCommRxBuffer[77]);
-                //logger.printfln("0E: "+printHex8(PrivCommRxBuffer,61)+", cpVolt: "+String(PrivCommRxBuffer[20]+256*PrivCommRxBuffer[21])+", "+String(PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18]));
+                logger.printfln("   cmd_%.2X seq:%.2X duty:%d cpVolt:%d power factors:%d/%d/%d/%d offset0:%d offset1:%d leakcurr:%d AMBTemp:%d lockstatus:%d",
+                    cmd, seq,
+                    PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18],
+                    PrivCommRxBuffer[19]+256*PrivCommRxBuffer[20],
+                    PrivCommRxBuffer[9]+256*PrivCommRxBuffer[10],PrivCommRxBuffer[11]+256*PrivCommRxBuffer[12],PrivCommRxBuffer[13]+256*PrivCommRxBuffer[14],PrivCommRxBuffer[15]+256*PrivCommRxBuffer[16],
+                    PrivCommRxBuffer[55]+256*PrivCommRxBuffer[56],
+                    PrivCommRxBuffer[57]+256*PrivCommRxBuffer[58],
+                    PrivCommRxBuffer[59]+256*PrivCommRxBuffer[60],
+                    PrivCommRxBuffer[61]+256*PrivCommRxBuffer[62],
+                    PrivCommRxBuffer[63]);
+                //PrivCommAck(cmd, PrivCommTxBuffer); // Ack?
                 break;
             default:
                 logger.printfln("   cmd_%.2X seq:%.2X I don't know what to do about it.", cmd, seq);
