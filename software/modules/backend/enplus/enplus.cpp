@@ -29,6 +29,7 @@
 #include "modules/sse/sse.h"
 #include "HardwareSerial.h"
 #include "Time/TimeLib.h"
+//#include "SPIFFS.h"
 
 extern EventLog logger;
 
@@ -300,6 +301,10 @@ void ENplus::sendTimeLong() {
 
 ENplus::ENplus()
 {
+    evse_config = Config::Object({
+        {"auto_start_charging", Config::Bool(true)}
+    });
+
     evse_state = Config::Object({
         {"iec61851_state", Config::Uint8(0)},
         {"vehicle_state", Config::Uint8(0)},
@@ -429,6 +434,14 @@ int ENplus::bs_evse_stop_charging(TF_EVSE *evse) {
 int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
     logger.printfln("EVSE set auto start charging to %s", autostart ? "true" :"false");
     evse_auto_start_charging.get("auto_start_charging")->updateBool(autostart);
+    evse_config.get("auto_start_charging")->updateBool(autostart); // this is persistent
+    String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
+        {"auto_start_charging", autostart}
+    }});
+
+    if (error != "") {
+        logger.printfln("Failed to update auto_start_charging: %s", error.c_str());
+    }
     // TODO persist setting on FS?
     return 0;
 }
@@ -483,8 +496,14 @@ void ENplus::setup()
 {
     setup_evse();
 
-    api.restorePersistentConfig("evse/config", &evse_auto_start_charging);
-    logger.printfln("EVSE auto start charging is %s", evse_auto_start_charging.get("auto_start_charging")->asBool() ? "true" :"false");
+//    server.serveStatic("/fs", SPIFFS, "/");
+      // get any file via: http://warp-enplus.fritz.box/fs/evse_config.json //     "/" -> "_"
+//
+    if(!api.restorePersistentConfig("evse/config", &evse_config)) {
+        logger.printfln("EVSE error, could not restore persistent storage config");
+    } else {
+        evse_auto_start_charging.get("auto_start_charging")->updateBool(evse_config.get("auto_start_charging")->asBool());
+    }
 
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
         update_evse_state();
@@ -594,7 +613,7 @@ void ENplus::register_urls()
     if (!evse_found)
         return;
 
-    api.addPersistentConfig("evse/config", &evse_auto_start_charging, {}, 1000);
+    api.addPersistentConfig("evse/config", &evse_config, {}, 1000);
 
     api.addState("evse/state", &evse_state, {}, 1000);
     api.addState("evse/hardware_configuration", &evse_hardware_configuration, {}, 1000);
@@ -1179,7 +1198,7 @@ void ENplus::update_evse_auto_start_charging() {
 
     //auto_start_charging = false;
 
-    logger.printfln("EVSE auto start charging is %s", evse_auto_start_charging.get("auto_start_charging")->asBool() ? "true" :"false");
+    //logger.printfln("EVSE auto start charging is %s", evse_auto_start_charging.get("auto_start_charging")->asBool() ? "true" :"false");
     //evse_auto_start_charging.get("auto_start_charging")->updateBool(auto_start_charging);
 }
 
