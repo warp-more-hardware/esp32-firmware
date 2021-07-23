@@ -26,7 +26,8 @@
 #include "event_log.h"
 #include "task_scheduler.h"
 #include "tools.h"
-#include "modules/sse/sse.h"
+#include "web_server.h"
+#include "modules/ws/ws.h"
 #include "HardwareSerial.h"
 #include "Time/TimeLib.h"
 //#include "SPIFFS.h"
@@ -35,8 +36,8 @@ extern EventLog logger;
 
 extern TaskScheduler task_scheduler;
 extern TF_HalContext hal;
-extern AsyncWebServer server;
-extern Sse sse;
+extern WebServer server;
+extern WS ws;
 
 extern API api;
 extern bool firmware_update_allowed;
@@ -362,7 +363,7 @@ ENplus::ENplus()
         {"max_current_configured", Config::Uint16(0)},
         {"max_current_incoming_cable", Config::Uint16(16000)},
         {"max_current_outgoing_cable", Config::Uint16(16000)},
-        //{"max_current_managed", Config::Uint16(0)},
+        {"max_current_managed", Config::Uint16(0)},
     });
 
     evse_auto_start_charging = Config::Object({
@@ -378,7 +379,7 @@ ENplus::ENplus()
 
     evse_stop_charging = Config::Null();
     evse_start_charging = Config::Null();
-/*
+
     evse_managed_current = Config::Object ({
         {"current", Config::Uint16(0)}
     });
@@ -391,7 +392,7 @@ ENplus::ENplus()
         {"managed", Config::Bool(false)},
         {"password", Config::Uint32(0)}
     });
-*/
+
     evse_user_calibration = Config::Object({
         {"user_calibration_active", Config::Bool(false)},
         {"voltage_diff", Config::Int16(0)},
@@ -495,6 +496,9 @@ int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
 void ENplus::setup()
 {
     setup_evse();
+    // TODO think about if the evse_found think can ease the startup even if it makes it slower
+    if(!evse_found)
+        return;
 
 //    server.serveStatic("/fs", SPIFFS, "/");
       // get any file via: http://warp-enplus.fritz.box/fs/evse_config.json //     "/" -> "_"
@@ -521,17 +525,19 @@ void ENplus::setup()
         update_evse_auto_start_charging();
     }, 0, 1000);
 
-    /*task_scheduler.scheduleWithFixedDelay("update_evse_managed", [this](){
+    task_scheduler.scheduleWithFixedDelay("update_evse_managed", [this](){
         update_evse_managed();
-    }, 0, 1000);*/
+    }, 0, 1000);
 
-    /*task_scheduler.scheduleWithFixedDelay("update_evse_user_calibration", [this](){
+    task_scheduler.scheduleWithFixedDelay("update_evse_user_calibration", [this](){
         update_evse_user_calibration();
-    }, 0, 10000);*/
+    }, 0, 10000);
 
     task_scheduler.scheduleWithFixedDelay("update_evse_charge_stats", [this](){
         update_evse_charge_stats();
     }, 0, 10000);
+
+    start_managed_tasks();
 }
 
 String ENplus::get_evse_debug_header() {
@@ -608,6 +614,12 @@ String ENplus::get_evse_debug_line() {
     return String(line);
 }
 
+void EVSE::set_managed_current(uint16_t current) {
+    is_in_bootloader(tf_evse_set_managed_current(&evse, current));
+    this->last_current_update = millis();
+    this->shutdown_logged = false;
+}
+
 void ENplus::register_urls()
 {
     if (!evse_found)
@@ -632,16 +644,16 @@ void ENplus::register_urls()
 
     api.addCommand("evse/stop_charging", &evse_stop_charging, {}, [this](){bs_evse_stop_charging(&evse);}, true);
     api.addCommand("evse/start_charging", &evse_start_charging, {}, [this](){bs_evse_start_charging(&evse);}, true);
-/*
+
     api.addCommand("evse/managed_current_update", &evse_managed_current, {}, [this](){
-        tf_evse_set_managed_current(&evse, evse_managed_current.get("current")->asUint());
+        this->set_managed_current(evse_managed_current.get("current")->asUint());
     }, true);
 
     api.addState("evse/managed", &evse_managed, {}, 1000);
     api.addCommand("evse/managed_update", &evse_managed_update, {"password"}, [this](){
-        tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint());
+        //TODOTODO set managed current as local value, not in the tf_evse
+        is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
     }, true);
-*/
 
     api.addState("evse/user_calibration", &evse_user_calibration, {}, 1000);
     api.addCommand("evse/user_calibration_update", &evse_user_calibration, {}, [this](){
@@ -659,19 +671,19 @@ void ENplus::register_urls()
             );
     }, true);
 
-    server.on("/evse/start_debug", HTTP_GET, [this](AsyncWebServerRequest *request) {
+    server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
         task_scheduler.scheduleOnce("enable evse debug", [this](){
-            sse.pushStateUpdate(this->get_evse_debug_header(), "evse/debug_header");
+            ws.pushStateUpdate(this->get_evse_debug_header(), "evse/debug_header");
             debug = true;
         }, 0);
-        request->send(200);
+        request.send(200);
     });
 
-    server.on("/evse/stop_debug", HTTP_GET, [this](AsyncWebServerRequest *request){
+    server.on("/evse/stop_debug", HTTP_GET, [this](WebServerRequest request){
         task_scheduler.scheduleOnce("enable evse debug", [this](){
             debug = false;
         }, 0);
-        request->send(200);
+        request.send(200);
     });
 }
 
@@ -697,7 +709,7 @@ void ENplus::loop()
 
     if(debug && deadline_elapsed(last_debug + 50)) {
         last_debug = millis();
-        sse.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
+        ws.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
     }
 
     if( Serial2.available() > 0 && !cmd_to_process) {
@@ -1216,10 +1228,11 @@ void ENplus::update_evse_managed() {
         return;
     bool managed;
 
-    int rc = tf_evse_get_managed(&evse,
-        &managed);
+//    int rc = tf_evse_get_managed(&evse,
+//        &managed);
 
-    evse_managed.get("managed")->updateBool(managed);
+//    evse_managed.get("managed")->updateBool(managed);
+    evse_managed.get("managed")->updateBool(true);
 }
 
 void ENplus::update_evse_charge_stats() {
@@ -1304,4 +1317,107 @@ void ENplus::update_evse_user_calibration() {
 
 bool ENplus::is_in_bootloader(int rc) {
     return false;
+}
+
+void ENplus::start_managed_tasks() {
+    sock = create_socket(false);
+
+    if(sock < 0)
+        return;
+
+    memset(&source_addr, 0, sizeof(source_addr));
+
+
+    task_scheduler.scheduleWithFixedDelay("evse_managed_receive_task", [this](){
+        static uint8_t last_seen_seq_num = 255;
+        request_packet recv_buf[2] = {0};
+
+        struct sockaddr_storage temp_addr;
+        socklen_t socklen = sizeof(temp_addr);
+        int len = recvfrom(sock, recv_buf, sizeof(recv_buf), 0, (struct sockaddr *)&temp_addr, &socklen);
+
+        if (len < 0) {
+            if (errno != EAGAIN && errno != EWOULDBLOCK)
+                logger.printfln("recvfrom failed: errno %d", errno);
+            return;
+        }
+
+        if (len != sizeof(request_packet)) {
+            logger.printfln("received datagram of wrong size %d", len);
+            return;
+        }
+
+        request_packet request;
+        memcpy(&request, recv_buf, sizeof(request));
+
+        if (request.header.seq_num <= last_seen_seq_num && last_seen_seq_num - request.header.seq_num < 5) {
+            logger.printfln("received stale (out of order?) packet. last seen seq_num is %u, received seq_num is %u", last_seen_seq_num, request.header.seq_num);
+            return;
+        }
+
+        if (request.header.version[0] != _MAJOR_ || request.header.version[1] != _MINOR_ || request.header.version[2] != _PATCH_) {
+            logger.printfln("received packet from box with incompatible firmware. Our version is %u.%u.%u, received packet had %u.%u.%u",
+                _MAJOR_, _MINOR_, _PATCH_,
+                request.header.version[0],
+                request.header.version[1],
+                request.header.version[2]);
+            return;
+        }
+
+        last_seen_seq_num = request.header.seq_num;
+        source_addr_valid = false;
+
+        source_addr = temp_addr;
+
+        source_addr_valid = true;
+        this->set_managed_current(request.allocated_current);
+        //logger.printfln("Received request. Allocated current is %u", request.allocated_current);
+    }, 100, 100);
+
+    task_scheduler.scheduleWithFixedDelay("evse_managed_send_task", [this](){
+        static uint8_t next_seq_num = 0;
+
+        if (!source_addr_valid) {
+            //logger.printfln("source addr not valid.");
+            return;
+
+        }
+        //logger.printfln("Sending response.");
+
+        response_packet response;
+        response.header.seq_num = next_seq_num;
+        ++next_seq_num;
+        response.header.version[0] = _MAJOR_;
+        response.header.version[1] = _MINOR_;
+        response.header.version[2] = _PATCH_;
+
+        response.iec61851_state = evse_state.get("iec61851_state")->asUint();
+        response.vehicle_state = evse_state.get("vehicle_state")->asUint();
+        response.error_state = evse_state.get("error_state")->asUint();
+        response.uptime = evse_state.get("uptime")->asUint();
+        response.allowed_charging_current = evse_state.get("allowed_charging_current")->asUint();
+        response.charge_release = evse_state.get("charge_release")->asUint();
+
+        int err = sendto(sock, &response, sizeof(response), 0, (sockaddr *)&source_addr, sizeof(source_addr));
+        if (err < 0) {
+            if (errno != EAGAIN && errno != EWOULDBLOCK)
+                logger.printfln("sendto failed: errno %d", errno);
+            return;
+        }
+        if (err != sizeof(response)){
+            logger.printfln("sendto truncated the response (of size %u bytes) to %d bytes.", sizeof(response), err);
+            return;
+        }
+
+        //logger.printfln("Sent response.");
+    }, 1000, 1000);
+
+    task_scheduler.scheduleWithFixedDelay("evse_managed_current_watchdog", [this]() {
+        if (!deadline_elapsed(this->last_current_update + 30000))
+            return;
+        if(!shutdown_logged)
+            logger.printfln("Got no managed current update for more than 30 seconds. Setting managed current to 0");
+        shutdown_logged = true;
+        is_in_bootloader(tf_evse_set_managed_current(&evse, 0));
+    }, 1000, 1000);
 }

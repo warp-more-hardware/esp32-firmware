@@ -19,12 +19,13 @@
 
 #pragma once
 
-#include "ESPAsyncWebServer.h"
 #include "ArduinoJson.h"
 
 #include "bindings/bricklet_evse.h"
 
 #include "config.h"
+
+#include "lwip/sockets.h"
 
 class ENplus {
 public:
@@ -52,6 +53,7 @@ private:
     bool wait_for_bootloader_mode(int mode);
     String get_evse_debug_header();
     String get_evse_debug_line();
+    void set_managed_current(uint16_t current);
     String get_hex_privcomm_line(byte *data);
     void Serial2write(byte *data, int size);
     void PrivCommSend(byte cmd, uint16_t datasize, byte *data);
@@ -90,4 +92,12 @@ private:
     Config evse_privcomm;
 
     TF_EVSE evse;
+
+    void start_managed_tasks();
+
+    bool source_addr_valid = false;
+    struct sockaddr_storage source_addr;
+    int sock;
+    uint32_t last_current_update = 0;
+    bool shutdown_logged = false;
 };
