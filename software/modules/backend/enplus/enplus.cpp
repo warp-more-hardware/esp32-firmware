@@ -19,6 +19,7 @@
 
 #include "enplus.h"
 #include "enplus_firmware.h"
+#include "charge_management_protocol.h"
 
 #include "bindings/errors.h"
 
@@ -614,7 +615,7 @@ String ENplus::get_evse_debug_line() {
     return String(line);
 }
 
-void EVSE::set_managed_current(uint16_t current) {
+void ENplus::set_managed_current(uint16_t current) {
     is_in_bootloader(tf_evse_set_managed_current(&evse, current));
     this->last_current_update = millis();
     this->shutdown_logged = false;
