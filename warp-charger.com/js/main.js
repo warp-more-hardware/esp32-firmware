@@ -13,9 +13,6 @@ jQuery(document).ready(function( $ ) {
     return false;
   });
 
-  // Initiate the wowjs animation library
-  new WOW().init();
-
   // Initiate superfish on nav menu
   $('.nav-menu').superfish({
     animation: {
@@ -138,5 +135,13 @@ jQuery(document).ready(function( $ ) {
 
     impressionsIsotope.isotope({ filter: $(this).data('filter') });
   });
+
+  lightbox.option({
+    'resizeDuration': 0,
+    'imageFadeDuration': 0,
+    'fadeDuration': 0,
+    'wrapAround': true,
+    'albumLabel': "Bild %1 von %2"
+  })
 
 });
