@@ -1,5 +1,6 @@
 /* warp-charger
  * Copyright (C) 2020-2021 Erik Fleckstein <erik@tinkerforge.com>
+ * Copyright (C)      2021 Birger Schmidt <bs-warp@netgaroo.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,12 +20,13 @@
 
 #pragma once
 
-#include "ESPAsyncWebServer.h"
 #include "ArduinoJson.h"
 
 #include "bindings/bricklet_evse.h"
 
 #include "config.h"
+
+#include "lwip/sockets.h"
 
 class sonoff {
 public:
@@ -47,12 +49,14 @@ private:
     void update_evse_auto_start_charging();
     void update_evse_managed();
     void update_evse_user_calibration();
+    void update_evse_charge_stats();
     bool is_in_bootloader(int rc);
     bool flash_firmware();
     bool flash_plugin(int regular_plugin_upto);
     bool wait_for_bootloader_mode(int mode);
     String get_evse_debug_header();
     String get_evse_debug_line();
+    void set_managed_current(uint16_t current);
 
     bool debug = false;
 
@@ -76,4 +80,12 @@ private:
     Config evse_privcomm;
 
     TF_EVSE evse;
+
+    void start_managed_tasks();
+
+    bool source_addr_valid = false;
+    struct sockaddr_storage source_addr;
+    int sock;
+    uint32_t last_current_update = 0;
+    bool shutdown_logged = false;
 };
