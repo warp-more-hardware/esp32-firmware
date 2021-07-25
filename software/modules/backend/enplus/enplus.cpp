@@ -1293,22 +1293,22 @@ void ENplus::update_evse_user_calibration() {
     bool user_calibration_active;
     int16_t voltage_diff, voltage_mul, voltage_div, resistance_2700, resistance_880[14];
 
-    int rc = tf_evse_get_user_calibration(&evse,
-        &user_calibration_active,
-        &voltage_diff,
-        &voltage_mul,
-        &voltage_div,
-        &resistance_2700,
-        resistance_880);
-
-    evse_user_calibration.get("user_calibration_active")->updateBool(user_calibration_active);
-    evse_user_calibration.get("voltage_diff")->updateInt(voltage_diff);
-    evse_user_calibration.get("voltage_mul")->updateInt(voltage_mul);
-    evse_user_calibration.get("voltage_div")->updateInt(voltage_div);
-    evse_user_calibration.get("resistance_2700")->updateInt(resistance_2700);
-
-    for(int i = 0; i < sizeof(resistance_880)/sizeof(resistance_880[0]); ++i)
-        evse_user_calibration.get("resistance_880")->get(i)->updateInt(resistance_880[i]);
+//    int rc = tf_evse_get_user_calibration(&evse,
+//        &user_calibration_active,
+//        &voltage_diff,
+//        &voltage_mul,
+//        &voltage_div,
+//        &resistance_2700,
+//        resistance_880);
+//
+//    evse_user_calibration.get("user_calibration_active")->updateBool(user_calibration_active);
+//    evse_user_calibration.get("voltage_diff")->updateInt(voltage_diff);
+//    evse_user_calibration.get("voltage_mul")->updateInt(voltage_mul);
+//    evse_user_calibration.get("voltage_div")->updateInt(voltage_div);
+//    evse_user_calibration.get("resistance_2700")->updateInt(resistance_2700);
+//
+//    for(int i = 0; i < sizeof(resistance_880)/sizeof(resistance_880[0]); ++i)
+//        evse_user_calibration.get("resistance_880")->get(i)->updateInt(resistance_880[i]);
 }
 
 bool ENplus::is_in_bootloader(int rc) {

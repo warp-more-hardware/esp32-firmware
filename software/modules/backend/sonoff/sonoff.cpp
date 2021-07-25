@@ -211,6 +211,13 @@ int sonoff::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
     return TF_E_OK;
 }
 
+int sonoff::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
+    logger.printfln("EVSE set charging limit to %d Ampere.", uint8_t(max_current/1000));
+    evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
+
+    return 0;
+}
+
 void sonoff::setup()
 {
     setup_evse();
@@ -314,7 +321,7 @@ String sonoff::get_evse_debug_line() {
     return String(line);
 }
 
-void ENplus::set_managed_current(uint16_t current) {
+void sonoff::set_managed_current(uint16_t current) {
     is_in_bootloader(tf_evse_set_managed_current(&evse, current));
     this->last_current_update = millis();
     this->shutdown_logged = false;
@@ -332,9 +339,9 @@ void sonoff::register_urls()
     api.addState("evse/auto_start_charging", &evse_auto_start_charging, {}, 1000);
     api.addState("evse/privcomm", &evse_privcomm, {}, 1000);
 
-    api.addCommand("evse/auto_start_charging_update", &evse_auto_start_charging_update, {}, [this](){
-        bs_evse_set_charging_autostart(&evse, evse_auto_start_charging_update.get("auto_start_charging")->asBool());
-    }, false);
+    //api.addCommand("evse/auto_start_charging_update", &evse_auto_start_charging_update, {}, [this](){
+    //    bs_evse_set_charging_autostart(&evse, evse_auto_start_charging_update.get("auto_start_charging")->asBool());
+    //}, false);
 
     api.addCommand("evse/current_limit", &evse_current_limit, {}, [this](){
         bs_evse_set_max_charging_current(&evse, evse_current_limit.get("current")->asUint());
@@ -417,7 +424,6 @@ void sonoff::loop()
         ws.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
     }
 
-    }
 }
 
 void sonoff::setup_evse()
@@ -572,7 +578,7 @@ void sonoff::update_evse_max_charging_current() {
     evse_max_charging_current.get("max_current_configured")->updateUint(configured);
     evse_max_charging_current.get("max_current_incoming_cable")->updateUint(incoming);
     evse_max_charging_current.get("max_current_outgoing_cable")->updateUint(outgoing);
-//    evse_max_charging_current.get("max_current_managed")->updateUint(managed);
+    evse_max_charging_current.get("max_current_managed")->updateUint(managed);
     digitalWrite(RELAY2, charging);
 }
 
@@ -601,54 +607,50 @@ void sonoff::update_evse_managed() {
 
 //    int rc = tf_evse_get_managed(&evse,
 //        &managed);
+//    if(rc != TF_E_OK) {
+//        is_in_bootloader(rc);
+//        return;
+//    }
 
-//    evse_managed.get("managed")->updateBool(managed);
+    //evse_managed.get("managed")->updateBool(managed);
     evse_managed.get("managed")->updateBool(true);
-}
-
-    if(rc != TF_E_OK) {
-        is_in_bootloader(rc);
-        return;
-    }
-
-    evse_managed.get("managed")->updateBool(managed);
 }
 
 void sonoff::update_evse_user_calibration() {
     if(!initialized)
         return;
 
-    bool user_calibration_active;
-    int16_t voltage_diff, voltage_mul, voltage_div, resistance_2700, resistance_880[14];
-
-    int rc = tf_evse_get_user_calibration(&evse,
-        &user_calibration_active,
-        &voltage_diff,
-        &voltage_mul,
-        &voltage_div,
-        &resistance_2700,
-        resistance_880);
-
-    if(rc != TF_E_OK) {
-        is_in_bootloader(rc);
-        return;
-    }
-
-    evse_user_calibration.get("user_calibration_active")->updateBool(user_calibration_active);
-    evse_user_calibration.get("voltage_diff")->updateInt(voltage_diff);
-    evse_user_calibration.get("voltage_mul")->updateInt(voltage_mul);
-    evse_user_calibration.get("voltage_div")->updateInt(voltage_div);
-    evse_user_calibration.get("resistance_2700")->updateInt(resistance_2700);
-
-    for(int i = 0; i < sizeof(resistance_880)/sizeof(resistance_880[0]); ++i)
-        evse_user_calibration.get("resistance_880")->get(i)->updateInt(resistance_880[i]);
+//    bool user_calibration_active;
+//    int16_t voltage_diff, voltage_mul, voltage_div, resistance_2700, resistance_880[14];
+//
+//    int rc = tf_evse_get_user_calibration(&evse,
+//        &user_calibration_active,
+//        &voltage_diff,
+//        &voltage_mul,
+//        &voltage_div,
+//        &resistance_2700,
+//        resistance_880);
+//
+//    if(rc != TF_E_OK) {
+//        is_in_bootloader(rc);
+//        return;
+//    }
+//
+//    evse_user_calibration.get("user_calibration_active")->updateBool(user_calibration_active);
+//    evse_user_calibration.get("voltage_diff")->updateInt(voltage_diff);
+//    evse_user_calibration.get("voltage_mul")->updateInt(voltage_mul);
+//    evse_user_calibration.get("voltage_div")->updateInt(voltage_div);
+//    evse_user_calibration.get("resistance_2700")->updateInt(resistance_2700);
+//
+//    for(int i = 0; i < sizeof(resistance_880)/sizeof(resistance_880[0]); ++i)
+//        evse_user_calibration.get("resistance_880")->get(i)->updateInt(resistance_880[i]);
 }
 
 bool sonoff::is_in_bootloader(int rc) {
     return false;
 }
 
-void ENplus::start_managed_tasks() {
+void sonoff::start_managed_tasks() {
     sock = create_socket(false);
 
     if(sock < 0)
