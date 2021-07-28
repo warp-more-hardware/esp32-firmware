@@ -19,7 +19,6 @@
 
 #include "evse.h"
 #include "evse_firmware.h"
-#include "charge_management_protocol.h"
 
 #include "bindings/errors.h"
 
@@ -28,14 +27,13 @@
 #include "task_scheduler.h"
 #include "tools.h"
 #include "web_server.h"
-#include "modules/ws/ws.h"
+#include "modules.h"
 
 extern EventLog logger;
 
 extern TaskScheduler task_scheduler;
 extern TF_HalContext hal;
 extern WebServer server;
-extern WS ws;
 
 extern API api;
 extern bool firmware_update_allowed;
@@ -173,7 +171,31 @@ void EVSE::setup()
         update_evse_user_calibration();
     }, 0, 10000);
 
-    start_managed_tasks();
+#ifdef MODULE_CM_NETWORKING_AVAILABLE
+    cm_networking.register_client([this](uint16_t current){
+        set_managed_current(current);
+    });
+
+    task_scheduler.scheduleWithFixedDelay("evse_send_cm_networking_client", [this](){
+        cm_networking.send_client_update(
+            evse_state.get("iec61851_state")->asUint(),
+            evse_state.get("vehicle_state")->asUint(),
+            evse_state.get("error_state")->asUint(),
+            evse_state.get("charge_release")->asUint(),
+            evse_state.get("uptime")->asUint(),
+            evse_state.get("allowed_charging_current")->asUint()
+        );
+    }, 1000, 1000);
+
+    task_scheduler.scheduleWithFixedDelay("evse_managed_current_watchdog", [this]() {
+        if (!deadline_elapsed(this->last_current_update + 30000))
+            return;
+        if(!this->shutdown_logged)
+            logger.printfln("Got no managed current update for more than 30 seconds. Setting managed current to 0");
+        this->shutdown_logged = true;
+        is_in_bootloader(tf_evse_set_managed_current(&evse, 0));
+    }, 1000, 1000);
+#endif
 }
 
 String EVSE::get_evse_debug_header() {
@@ -306,6 +328,7 @@ void EVSE::register_urls()
             ));
     }, true);
 
+#ifdef MODULE_WS_AVAILABLE
     server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
         task_scheduler.scheduleOnce("enable evse debug", [this](){
             ws.pushStateUpdate(this->get_evse_debug_header(), "evse/debug_header");
@@ -320,22 +343,25 @@ void EVSE::register_urls()
         }, 0);
         request.send(200);
     });
+#endif
 }
 
 void EVSE::loop()
 {
     static uint32_t last_check = 0;
-    static uint32_t last_debug = 0;
     if(evse_found && !initialized && deadline_elapsed(last_check + 10000)) {
         last_check = millis();
         if(!is_in_bootloader(TF_E_TIMEOUT))
             setup_evse();
     }
 
+#ifdef MODULE_WS_AVAILABLE
+    static uint32_t last_debug = 0;
     if(debug && deadline_elapsed(last_debug + 50)) {
         last_debug = millis();
         ws.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
     }
+#endif
 }
 
 void EVSE::setup_evse()
@@ -577,107 +603,4 @@ bool EVSE::is_in_bootloader(int rc) {
     }
 
     return mode != TF_EVSE_BOOTLOADER_MODE_FIRMWARE;
-}
-
-void EVSE::start_managed_tasks() {
-    sock = create_socket(false);
-
-    if(sock < 0)
-        return;
-
-    memset(&source_addr, 0, sizeof(source_addr));
-
-
-    task_scheduler.scheduleWithFixedDelay("evse_managed_receive_task", [this](){
-        static uint8_t last_seen_seq_num = 255;
-        request_packet recv_buf[2] = {0};
-
-        struct sockaddr_storage temp_addr;
-        socklen_t socklen = sizeof(temp_addr);
-        int len = recvfrom(sock, recv_buf, sizeof(recv_buf), 0, (struct sockaddr *)&temp_addr, &socklen);
-
-        if (len < 0) {
-            if (errno != EAGAIN && errno != EWOULDBLOCK)
-                logger.printfln("recvfrom failed: errno %d", errno);
-            return;
-        }
-
-        if (len != sizeof(request_packet)) {
-            logger.printfln("received datagram of wrong size %d", len);
-            return;
-        }
-
-        request_packet request;
-        memcpy(&request, recv_buf, sizeof(request));
-
-        if (request.header.seq_num <= last_seen_seq_num && last_seen_seq_num - request.header.seq_num < 5) {
-            logger.printfln("received stale (out of order?) packet. last seen seq_num is %u, received seq_num is %u", last_seen_seq_num, request.header.seq_num);
-            return;
-        }
-
-        if (request.header.version[0] != _MAJOR_ || request.header.version[1] != _MINOR_ || request.header.version[2] != _PATCH_) {
-            logger.printfln("received packet from box with incompatible firmware. Our version is %u.%u.%u, received packet had %u.%u.%u",
-                _MAJOR_, _MINOR_, _PATCH_,
-                request.header.version[0],
-                request.header.version[1],
-                request.header.version[2]);
-            return;
-        }
-
-        last_seen_seq_num = request.header.seq_num;
-        source_addr_valid = false;
-
-        source_addr = temp_addr;
-
-        source_addr_valid = true;
-        this->set_managed_current(request.allocated_current);
-        //logger.printfln("Received request. Allocated current is %u", request.allocated_current);
-    }, 100, 100);
-
-    task_scheduler.scheduleWithFixedDelay("evse_managed_send_task", [this](){
-        static uint8_t next_seq_num = 0;
-
-        if (!source_addr_valid) {
-            //logger.printfln("source addr not valid.");
-            return;
-
-        }
-        //logger.printfln("Sending response.");
-
-        response_packet response;
-        response.header.seq_num = next_seq_num;
-        ++next_seq_num;
-        response.header.version[0] = _MAJOR_;
-        response.header.version[1] = _MINOR_;
-        response.header.version[2] = _PATCH_;
-
-        response.iec61851_state = evse_state.get("iec61851_state")->asUint();
-        response.vehicle_state = evse_state.get("vehicle_state")->asUint();
-        response.error_state = evse_state.get("error_state")->asUint();
-        response.uptime = evse_state.get("uptime")->asUint();
-        response.allowed_charging_current = evse_state.get("allowed_charging_current")->asUint();
-        response.charge_release = evse_state.get("charge_release")->asUint();
-
-        int err = sendto(sock, &response, sizeof(response), 0, (sockaddr *)&source_addr, sizeof(source_addr));
-        if (err < 0) {
-            if (errno != EAGAIN && errno != EWOULDBLOCK)
-                logger.printfln("sendto failed: errno %d", errno);
-            return;
-        }
-        if (err != sizeof(response)){
-            logger.printfln("sendto truncated the response (of size %u bytes) to %d bytes.", sizeof(response), err);
-            return;
-        }
-
-        //logger.printfln("Sent response.");
-    }, 1000, 1000);
-
-    task_scheduler.scheduleWithFixedDelay("evse_managed_current_watchdog", [this]() {
-        if (!deadline_elapsed(this->last_current_update + 30000))
-            return;
-        if(!shutdown_logged)
-            logger.printfln("Got no managed current update for more than 30 seconds. Setting managed current to 0");
-        shutdown_logged = true;
-        is_in_bootloader(tf_evse_set_managed_current(&evse, 0));
-    }, 1000, 1000);
 }
