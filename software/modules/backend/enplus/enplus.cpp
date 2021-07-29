@@ -842,18 +842,15 @@ void ENplus::loop()
                 logger.printfln("   cmd_%.2X seq:%.2X Ack Serial number and Version.", cmd, seq);
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
                 sprintf(str, "%s", PrivCommRxBuffer+8);
-                logger.printfln("EVSE Serial: %s %s", str, evse_hardware_configuration.get("SerialNumber")->asString());
                 evse_hardware_configuration.get("SerialNumber")->updateString(str);
                 sprintf(str, "%s",PrivCommRxBuffer+43);
-                logger.printfln("EVSE Hardware: %s", str);
                 evse_hardware_configuration.get("Hardware")->updateString(str);
                 sprintf(str, "%s",PrivCommRxBuffer+91);
-                logger.printfln("EVSE FirmwareVersion: %s", str);
                 evse_hardware_configuration.get("FirmwareVersion")->updateString(str);
                 logger.printfln("EVSE serial: %s hw: %s fw: %s", 
-                    evse_hardware_configuration.get("SerialNumber")->asString(),
-                    evse_hardware_configuration.get("Hardware")->asString(),
-                    evse_hardware_configuration.get("FirmwareVersion")->asString());
+                    evse_hardware_configuration.get("SerialNumber")->asString().c_str(),
+                    evse_hardware_configuration.get("Hardware")->asString().c_str(),
+                    evse_hardware_configuration.get("FirmwareVersion")->asString().c_str());
                 if(!evse_hardware_configuration.get("initialized")->asBool()) {
                     logger.printfln("Hardware == AC011K-AU-25 : %s", evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0 ? "true" : "false");
                     logger.printfln("FirmwareVersion == 1.1.27 : %s", evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.27") == 0 ? "true" : "false");
