@@ -1307,6 +1307,7 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
         evse_state.get("last_state_change")->updateUint(millis());
         evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
     }
+    evse_state.get("vehicle_state")->updateUint(evse_state.get("iec61851_state")->asUint());
 }
 
 void ENplus::update_evse_user_calibration() {
