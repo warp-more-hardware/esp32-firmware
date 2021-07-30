@@ -1270,6 +1270,7 @@ void ENplus::update_evse_charge_stats() {
 
 void ENplus::update_evseStatus(uint8_t evseStatus) {
     uint8_t last_iec61851_state = evse_state.get("iec61851_state")->asUint();
+    uint8_t last_evseStatus = evse_state.get("GD_state")->asUint();
     evse_state.get("GD_state")->updateUint(evseStatus);
     switch (evseStatus) {
         case 1:                                              // Available (not engaged)
@@ -1306,6 +1307,11 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
     if(last_iec61851_state != evse_state.get("iec61851_state")->asUint()) {
         evse_state.get("last_state_change")->updateUint(millis());
         evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
+	if(evse_auto_start_charging.get("auto_start_charging")->asBool()
+           && evseStatus == 2 || (evseStatus == 6 && last_evseStatus == 0)) { // just plugged in or already plugged in at startup
+            logger.printfln("Start charging automatically");
+            bs_evse_start_charging(&evse);
+        }
     }
     evse_state.get("vehicle_state")->updateUint(evse_state.get("iec61851_state")->asUint());
 }
