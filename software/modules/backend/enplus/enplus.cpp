@@ -633,15 +633,15 @@ void ENplus::register_urls()
         int16_t resistance_880[14];
         evse_user_calibration.get("resistance_880")->fillArray<int16_t, Config::ConfInt>(resistance_880, sizeof(resistance_880)/sizeof(resistance_880[0]));
 
-        tf_evse_set_user_calibration(&evse,
-            0xCA11B4A0,
-            evse_user_calibration.get("user_calibration_active")->asBool(),
-            evse_user_calibration.get("voltage_diff")->asInt(),
-            evse_user_calibration.get("voltage_mul")->asInt(),
-            evse_user_calibration.get("voltage_div")->asInt(),
-            evse_user_calibration.get("resistance_2700")->asInt(),
-            resistance_880
-            );
+//        tf_evse_set_user_calibration(&evse,
+//            0xCA11B4A0,
+//            evse_user_calibration.get("user_calibration_active")->asBool(),
+//            evse_user_calibration.get("voltage_diff")->asInt(),
+//            evse_user_calibration.get("voltage_mul")->asInt(),
+//            evse_user_calibration.get("voltage_div")->asInt(),
+//            evse_user_calibration.get("resistance_2700")->asInt(),
+//            resistance_880
+//            );
     }, true);
 
 #ifdef MODULE_WS_AVAILABLE
