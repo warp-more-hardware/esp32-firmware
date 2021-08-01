@@ -129,14 +129,14 @@ static const uint16_t crc16_modbus_table[] = {
 };
 
 // evse GD status strings
-const char *evse_status_text[] = {
+static const char *evse_status_text[] = {
    "undefined",
    "Available (not engaged)",
    "Preparing (engaged, not started)",
    "Charging (charging ongoing, power output)",
    "Suspended by charger (started but no power available)",
    "Suspended by EV (power available but waiting for the EV response)",
-   "Finishing, charging acomplished (RFID stop or EMS control stop",
+   "Finishing, charging acomplished (RFID stop or EMS control stop)",
    "(Reserved)",
    "(Unavailable)",
    "Fault (charger in fault condition)",
