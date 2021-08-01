@@ -463,13 +463,6 @@ int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
 void ENplus::setup()
 {
     setup_evse();
-    // TODO think about if the evse_found think can ease the startup even if it makes it slower
-    //if(!evse_found)
-    //    return;
-
-//    server.serveStatic("/fs", SPIFFS, "/");
-      // get any file via: http://warp-enplus.fritz.box/fs/evse_config.json //     "/" -> "_"
-//
     if(!api.restorePersistentConfig("evse/config", &evse_config)) {
         logger.printfln("EVSE error, could not restore persistent storage config");
     } else {
@@ -485,10 +478,6 @@ void ENplus::setup()
         update_evse_low_level_state();
     }, 0, 1000);
 
-//    task_scheduler.scheduleWithFixedDelay("update_evse_max_charging_current", [this](){
-//        update_evse_max_charging_current();
-//    }, 0, 1000);
-//
     task_scheduler.scheduleWithFixedDelay("update_evse_auto_start_charging", [this](){
         update_evse_auto_start_charging();
     }, 0, 1000);
