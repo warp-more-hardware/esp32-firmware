@@ -151,7 +151,8 @@ String ENplus::get_hex_privcomm_line(byte *data) {
 void ENplus::Serial2write(byte *data, int size) {
     int bytes_to_send = size;
     int offset = 0;
-    while(bytes_to_send > 0) {
+    uint32_t start_time = millis();
+    while(bytes_to_send > 0 || millis() - start_time >= 1000) {
         int afw = Serial2.availableForWrite();
         if(afw < bytes_to_send) { // send chunk
             bytes_to_send = bytes_to_send - Serial2.write(PrivCommTxBuffer + offset, afw);
@@ -163,6 +164,9 @@ void ENplus::Serial2write(byte *data, int size) {
             bytes_to_send = bytes_to_send - Serial2.write(PrivCommTxBuffer + offset, bytes_to_send);
             //logger.printfln("    sEND: Tx afw:%d bytes_to_send:%d offset:%d", afw, bytes_to_send, offset);
         }
+    }
+    if(bytes_to_send > 0) {
+        logger.printfln("ERR Tx time out, but still %d bytes_to_send, which where discarded now", bytes_to_send);
     }
 }
 
