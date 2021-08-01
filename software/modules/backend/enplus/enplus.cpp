@@ -252,7 +252,8 @@ void ENplus::sendTimeLong() {
 ENplus::ENplus()
 {
     evse_config = Config::Object({
-        {"auto_start_charging", Config::Bool(true)}
+        {"auto_start_charging", Config::Bool(true)},
+        {"max_current_configured", Config::Uint16(0)}
     });
 
     evse_state = Config::Object({
@@ -386,7 +387,8 @@ int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
     evse_auto_start_charging.get("auto_start_charging")->updateBool(autostart);
     evse_config.get("auto_start_charging")->updateBool(autostart); // this is persistent
     String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
-        {"auto_start_charging", autostart}
+        {"auto_start_charging", autostart},
+        {"max_current_configured", evse_current_limit.get("current")->asUint()}
     }});
 
     if (error != "") {
@@ -399,6 +401,11 @@ int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
 int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
     logger.printfln("EVSE set charging limit to %d Ampere.", uint8_t(max_current/1000));
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
+    evse_config.get("max_current_configured")->updateUint(max_current); // this is persistent
+    String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
+        {"auto_start_charging", evse_auto_start_charging.get("auto_start_charging")->asBool()},
+        {"max_current_configured", max_current}
+    }});
 
     time_t t=now();     // get current time
     ChargingSettings[2] = year(t) -2000;
@@ -428,9 +435,9 @@ int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
     allowed_charging_current = min(
         evse_max_charging_current.get("max_current_incoming_cable")->asUint(),
         evse_max_charging_current.get("max_current_outgoing_cable")->asUint());
-//    allowed_charging_current = min(
-//        allowed_charging_current,
-//        evse_max_charging_current.get("max_current_managed")->asUint());
+    allowed_charging_current = min(
+        allowed_charging_current,
+        evse_max_charging_current.get("max_current_managed")->asUint());
     *ret_allowed_charging_current = min(
         allowed_charging_current,
         evse_max_charging_current.get("max_current_configured")->asUint());
@@ -446,8 +453,8 @@ void ENplus::setup()
 {
     setup_evse();
     // TODO think about if the evse_found think can ease the startup even if it makes it slower
-    if(!evse_found)
-        return;
+    //if(!evse_found)
+    //    return;
 
 //    server.serveStatic("/fs", SPIFFS, "/");
       // get any file via: http://warp-enplus.fritz.box/fs/evse_config.json //     "/" -> "_"
@@ -456,6 +463,7 @@ void ENplus::setup()
         logger.printfln("EVSE error, could not restore persistent storage config");
     } else {
         evse_auto_start_charging.get("auto_start_charging")->updateBool(evse_config.get("auto_start_charging")->asBool());
+        evse_max_charging_current.get("max_current_configured")->updateUint(evse_config.get("max_current_configured")->asUint());
     }
 
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
@@ -508,7 +516,7 @@ void ENplus::setup()
         if(!this->shutdown_logged)
             logger.printfln("Got no managed current update for more than 30 seconds. Setting managed current to 0");
         this->shutdown_logged = true;
-        is_in_bootloader(tf_evse_set_managed_current(&evse, 0));
+        evse_managed_current.get("current")->updateUint(0);
     }, 1000, 1000);
 #endif
 }
@@ -588,7 +596,8 @@ String ENplus::get_evse_debug_line() {
 }
 
 void ENplus::set_managed_current(uint16_t current) {
-    is_in_bootloader(tf_evse_set_managed_current(&evse, current));
+    //is_in_bootloader(tf_evse_set_managed_current(&evse, current));
+    evse_managed_current.get("current")->updateUint(current);
     this->last_current_update = millis();
     this->shutdown_logged = false;
 }
@@ -625,7 +634,7 @@ void ENplus::register_urls()
     api.addState("evse/managed", &evse_managed, {}, 1000);
     api.addCommand("evse/managed_update", &evse_managed_update, {"password"}, [this](){
         //TODOTODO set managed current as local value, not in the tf_evse
-        is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
+        //is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
     }, true);
 
     api.addState("evse/user_calibration", &evse_user_calibration, {}, 1000);

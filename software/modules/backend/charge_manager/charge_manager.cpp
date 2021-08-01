@@ -95,6 +95,8 @@ uint8_t get_charge_state(uint8_t vehicle_state, uint8_t iec61851_state, uint8_t 
         return 5;
     if (vehicle_state == 1 && iec61851_state == 0 && charge_release != 3) //VEHICLE_STATE_CONNECTED, IEC61851_STATE_A
         return 1;
+    if (vehicle_state == 1 && iec61851_state == 1 && charge_release != 3) //VEHICLE_STATE_CONNECTED, IEC61851_STATE_B
+        return 1;
     if (charge_release == 3 && target_allocated_current == 0) // CHARGE_RELEASE_CHARGE_MANAGEMENT
         return 2;
     if (charge_release == 3 && target_allocated_current > 0)
