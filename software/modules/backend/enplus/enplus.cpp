@@ -370,7 +370,19 @@ ENplus::ENplus()
 
 int ENplus::bs_evse_start_charging(TF_EVSE *evse) {
     charging = true;
-    logger.printfln("EVSE start charging");
+    uint8_t allowed_charging_current = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
+    logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
+
+    time_t t=now();     // get current time
+    ChargingSettings[2] = year(t) -2000;
+    ChargingSettings[3] = month(t);
+    ChargingSettings[4] = day(t);
+    ChargingSettings[5] = hour(t);
+    ChargingSettings[6] = minute(t);
+    ChargingSettings[7] = second(t);
+    ChargingSettings[17] = allowed_charging_current;
+    sendCommand(ChargingSettings, sizeof(ChargingSettings));
+
     sendCommand(StartCharging, sizeof(StartCharging));
     return 0;
 }
@@ -399,7 +411,7 @@ int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
 }
 
 int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
-    logger.printfln("EVSE set charging limit to %d Ampere.", uint8_t(max_current/1000));
+    logger.printfln("EVSE set charging limit to %d Ampere", uint8_t(max_current/1000));
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
     evse_config.get("max_current_configured")->updateUint(max_current); // this is persistent
     String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
@@ -414,12 +426,11 @@ int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current
     ChargingSettings[5] = hour(t);
     ChargingSettings[6] = minute(t);
     ChargingSettings[7] = second(t);
-    ChargingSettings[17] = uint8_t(max_current/1000);
+    ChargingSettings[17] = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
     sendCommand(ChargingSettings, sizeof(ChargingSettings));
 
     return 0;
 }
-
 
 int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
 //    bool response_expected = true;
@@ -474,10 +485,10 @@ void ENplus::setup()
         update_evse_low_level_state();
     }, 0, 1000);
 
-    task_scheduler.scheduleWithFixedDelay("update_evse_max_charging_current", [this](){
-        update_evse_max_charging_current();
-    }, 0, 1000);
-
+//    task_scheduler.scheduleWithFixedDelay("update_evse_max_charging_current", [this](){
+//        update_evse_max_charging_current();
+//    }, 0, 1000);
+//
     task_scheduler.scheduleWithFixedDelay("update_evse_auto_start_charging", [this](){
         update_evse_auto_start_charging();
     }, 0, 1000);
@@ -598,6 +609,7 @@ String ENplus::get_evse_debug_line() {
 void ENplus::set_managed_current(uint16_t current) {
     //is_in_bootloader(tf_evse_set_managed_current(&evse, current));
     evse_managed_current.get("current")->updateUint(current);
+    evse_max_charging_current.get("max_current_managed")->updateUint(current);
     this->last_current_update = millis();
     this->shutdown_logged = false;
 }
@@ -1130,6 +1142,7 @@ void ENplus::update_evse_state() {
     if(!initialized)
         return;
     uint8_t iec61851_state, vehicle_state, contactor_state, contactor_error, charge_release, error_state, lock_state;
+    uint16_t last_allowed_charging_current = evse_state.get("allowed_charging_current")->asUint();
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
@@ -1153,8 +1166,19 @@ void ENplus::update_evse_state() {
     evse_state.get("contactor_state")->updateUint(contactor_state);
     bool contactor_error_changed = evse_state.get("contactor_error")->updateUint(contactor_error);
     evse_state.get("charge_release")->updateUint(charge_release);
-    evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
-    //logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
+    if(last_allowed_charging_current != allowed_charging_current) {
+        evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
+        logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
+        time_t t=now();
+        ChargingSettings[2] = year(t) -2000;
+        ChargingSettings[3] = month(t);
+        ChargingSettings[4] = day(t);
+        ChargingSettings[5] = hour(t);
+        ChargingSettings[6] = minute(t);
+        ChargingSettings[7] = second(t);
+        ChargingSettings[17] = uint8_t(allowed_charging_current/1000);
+        sendCommand(ChargingSettings, sizeof(ChargingSettings));
+    }
     bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
     evse_state.get("lock_state")->updateUint(lock_state);
     //evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
@@ -1175,21 +1199,6 @@ void ENplus::update_evse_state() {
 //            logger.printfln("EVSE: Error state cleared");
 //        }
 //    }
-}
-
-void ENplus::update_evse_max_charging_current() {
-    if(!initialized)
-        return;
-    uint16_t configured, incoming, outgoing, managed;
-
-    //configured = 7000;
-    //incoming = 16000;
-    //outgoing = 16000;
-
-    //evse_max_charging_current.get("max_current_configured")->updateUint(configured);
-    //evse_max_charging_current.get("max_current_incoming_cable")->updateUint(incoming);
-    //evse_max_charging_current.get("max_current_outgoing_cable")->updateUint(outgoing);
-//    evse_max_charging_current.get("max_current_managed")->updateUint(managed);
 }
 
 void ENplus::update_evse_auto_start_charging() {
