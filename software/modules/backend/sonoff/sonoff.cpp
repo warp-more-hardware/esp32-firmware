@@ -158,54 +158,21 @@ int sonoff::bs_evse_stop_charging(TF_EVSE *evse) {
 }
 
 int sonoff::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
-//    if(tf_hal_get_common(evse->tfp->hal)->locked) {
-//        return TF_E_LOCKED;
-//    }
-//
 //    bool response_expected = true;
 //    tf_tfp_prepare_send(evse->tfp, TF_EVSE_FUNCTION_GET_STATE, 0, 17, response_expected);
-//
-//    uint32_t deadline = tf_hal_current_time_us(evse->tfp->hal) + tf_hal_get_common(evse->tfp->hal)->timeout;
-//
-//    uint8_t error_code = 0;
-//    int result = tf_tfp_transmit_packet(evse->tfp, response_expected, deadline, &error_code);
-//    if(result < 0)
-//        return result;
-//
-//    if (result & TF_TICK_TIMEOUT) {
-//        //return -result;
-//        return TF_E_TIMEOUT;
-//    }
-//
-//    if (result & TF_TICK_PACKET_RECEIVED && error_code == 0) {
-//        if (ret_iec61851_state != NULL) { *ret_iec61851_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_vehicle_state != NULL) { *ret_vehicle_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_contactor_state != NULL) { *ret_contactor_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_contactor_error != NULL) { *ret_contactor_error = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_charge_release != NULL) { *ret_charge_release = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_allowed_charging_current != NULL) { *ret_allowed_charging_current = tf_packetbuffer_read_uint16_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 2); }
-//        if (ret_error_state != NULL) { *ret_error_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_lock_state != NULL) { *ret_lock_state = tf_packetbuffer_read_uint8_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 1); }
-//        if (ret_time_since_state_change != NULL) { *ret_time_since_state_change = tf_packetbuffer_read_uint32_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 4); }
-//        if (ret_uptime != NULL) { *ret_uptime = tf_packetbuffer_read_uint32_t(&evse->tfp->spitfp->recv_buf); } else { tf_packetbuffer_remove(&evse->tfp->spitfp->recv_buf, 4); }
-//        tf_tfp_packet_processed(evse->tfp);
-//    }
-//
-//    result = tf_tfp_finish_send(evse->tfp, result, deadline);
-//    if(result < 0)
-//        return result;
-//
-    *ret_iec61851_state = charging ? 2 : 1; // 1 verbunden 2 laedt
-    *ret_vehicle_state = charging ? 2 : 1; // 1 verbunden 2 leadt
+    uint32_t allowed_charging_current;
+
+    *ret_iec61851_state = evse_state.get("iec61851_state")->asUint();
+    *ret_vehicle_state = evse_state.get("iec61851_state")->asUint(); // == 1 ? // charging ? 2 : 1; // 1 verbunden 2 leadt
     *ret_contactor_state = 2;
     *ret_contactor_error = 0;
     *ret_charge_release = 1; // manuell 0 automatisch
     *ret_allowed_charging_current = 8000;
     *ret_error_state = 0;
     *ret_lock_state = 0;
-    *ret_time_since_state_change = 123456;
+    *ret_time_since_state_change = evse_state.get("time_since_state_change")->asUint();
     *ret_uptime = millis();
-//    return tf_tfp_get_error(error_code);
+
     return TF_E_OK;
 }
 
@@ -219,6 +186,12 @@ int sonoff::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current
 void sonoff::setup()
 {
     setup_evse();
+    if(!api.restorePersistentConfig("evse/config", &evse_config)) {
+        logger.printfln("EVSE error, could not restore persistent storage config");
+    } else {
+        evse_auto_start_charging.get("auto_start_charging")->updateBool(evse_config.get("auto_start_charging")->asBool());
+        evse_max_charging_current.get("max_current_configured")->updateUint(evse_config.get("max_current_configured")->asUint());
+    }
 
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
         update_evse_state();
@@ -226,10 +199,6 @@ void sonoff::setup()
 
     task_scheduler.scheduleWithFixedDelay("update_evse_low_level_state", [this](){
         update_evse_low_level_state();
-    }, 0, 1000);
-
-    task_scheduler.scheduleWithFixedDelay("update_evse_max_charging_current", [this](){
-        update_evse_max_charging_current();
     }, 0, 1000);
 
     task_scheduler.scheduleWithFixedDelay("update_evse_auto_start_charging", [this](){
@@ -266,7 +235,7 @@ void sonoff::setup()
         if(!this->shutdown_logged)
             logger.printfln("Got no managed current update for more than 30 seconds. Setting managed current to 0");
         this->shutdown_logged = true;
-        is_in_bootloader(tf_evse_set_managed_current(&evse, 0));
+        evse_managed_current.get("current")->updateUint(0);
     }, 1000, 1000);
 #endif
 }
@@ -346,7 +315,9 @@ String sonoff::get_evse_debug_line() {
 }
 
 void sonoff::set_managed_current(uint16_t current) {
-    is_in_bootloader(tf_evse_set_managed_current(&evse, current));
+    //is_in_bootloader(tf_evse_set_managed_current(&evse, current));
+    evse_managed_current.get("current")->updateUint(current);
+    evse_max_charging_current.get("max_current_managed")->updateUint(current);
     this->last_current_update = millis();
     this->shutdown_logged = false;
 }
@@ -355,6 +326,8 @@ void sonoff::register_urls()
 {
     if (!evse_found)
         return;
+
+    api.addPersistentConfig("evse/config", &evse_config, {}, 1000);
 
     api.addState("evse/state", &evse_state, {}, 1000);
     api.addState("evse/hardware_configuration", &evse_hardware_configuration, {}, 1000);
@@ -381,7 +354,7 @@ void sonoff::register_urls()
     api.addState("evse/managed", &evse_managed, {}, 1000);
     api.addCommand("evse/managed_update", &evse_managed_update, {"password"}, [this](){
         //TODOTODO set managed current as local value, not in the tf_evse
-        is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
+        //is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
     }, true);
 
     api.addState("evse/user_calibration", &evse_user_calibration, {}, 1000);
@@ -389,15 +362,15 @@ void sonoff::register_urls()
         int16_t resistance_880[14];
         evse_user_calibration.get("resistance_880")->fillArray<int16_t, Config::ConfInt>(resistance_880, sizeof(resistance_880)/sizeof(resistance_880[0]));
 
-        tf_evse_set_user_calibration(&evse,
-            0xCA11B4A0,
-            evse_user_calibration.get("user_calibration_active")->asBool(),
-            evse_user_calibration.get("voltage_diff")->asInt(),
-            evse_user_calibration.get("voltage_mul")->asInt(),
-            evse_user_calibration.get("voltage_div")->asInt(),
-            evse_user_calibration.get("resistance_2700")->asInt(),
-            resistance_880
-            );
+//        tf_evse_set_user_calibration(&evse,
+//            0xCA11B4A0,
+//            evse_user_calibration.get("user_calibration_active")->asBool(),
+//            evse_user_calibration.get("voltage_diff")->asInt(),
+//            evse_user_calibration.get("voltage_mul")->asInt(),
+//            evse_user_calibration.get("voltage_div")->asInt(),
+//            evse_user_calibration.get("resistance_2700")->asInt(),
+//            resistance_880
+//            );
     }, true);
 
 #ifdef MODULE_WS_AVAILABLE
@@ -426,8 +399,7 @@ void sonoff::loop()
 
     if(evse_found && !initialized && deadline_elapsed(last_check + 10000)) {
         last_check = millis();
-        if(!is_in_bootloader(TF_E_TIMEOUT))
-            setup_evse();
+        setup_evse();
     }
 
     switch1_before = switch1;
@@ -456,13 +428,6 @@ void sonoff::loop()
 
 void sonoff::setup_evse()
 {
-//    Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
-//    Serial2.setTimeout(90);
-//    logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
-
-    //logger.printfln("EN+ GD EVSE found. Enabling EVSE support.");
-    evse_found = true;
-
     pinMode(RELAY1, OUTPUT);
     pinMode(RELAY2, OUTPUT);
     pinMode(SWITCH1, INPUT);
@@ -470,15 +435,7 @@ void sonoff::setup_evse()
     digitalWrite(RELAY1, digitalRead(SWITCH1));
     digitalWrite(RELAY2, digitalRead(SWITCH2));
 
-    char uid[7] = {0}; // put SN here?
-    int result = tf_evse_create(&evse, uid, &hal);
-
-    uint8_t jumper_configuration;
-    bool has_lock_switch;
-
-    evse_hardware_configuration.get("jumper_configuration")->updateUint(jumper_configuration);
-    evse_hardware_configuration.get("has_lock_switch")->updateBool(has_lock_switch);
-
+    evse_found = true;
     initialized = true;
 }
 
@@ -503,11 +460,6 @@ void sonoff::update_evse_low_level_state() {
 //        voltages,
 //        resistances,
 //        gpio);
-//
-//    if(rc != TF_E_OK) {
-//        is_in_bootloader(rc);
-//        return;
-//    }
 
         low_level_mode_enabled = true;
         led_state = 1;
@@ -561,14 +513,7 @@ void sonoff::update_evse_state() {
         &time_since_state_change,
         &uptime);
 
-    if(rc != TF_E_OK) {
-        is_in_bootloader(rc);
-        return;
-    }
-
-    //firmware_update_allowed = vehicle_state == 0;
-    // fix/revert this before release!!!
-    firmware_update_allowed = vehicle_state != 0;
+    firmware_update_allowed = true;
 
     evse_state.get("iec61851_state")->updateUint(iec61851_state);
     evse_state.get("vehicle_state")->updateUint(vehicle_state);
@@ -578,7 +523,7 @@ void sonoff::update_evse_state() {
     evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
     bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
     evse_state.get("lock_state")->updateUint(lock_state);
-    evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
+    //evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
     evse_state.get("uptime")->updateUint(uptime);
 }
 
@@ -658,11 +603,6 @@ void sonoff::update_evse_user_calibration() {
 //        &voltage_div,
 //        &resistance_2700,
 //        resistance_880);
-//
-//    if(rc != TF_E_OK) {
-//        is_in_bootloader(rc);
-//        return;
-//    }
 //
 //    evse_user_calibration.get("user_calibration_active")->updateBool(user_calibration_active);
 //    evse_user_calibration.get("voltage_diff")->updateInt(voltage_diff);
