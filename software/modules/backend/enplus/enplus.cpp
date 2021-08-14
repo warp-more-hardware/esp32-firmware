@@ -846,7 +846,7 @@ void ENplus::loop()
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A4 len:17) :  FA 03 00 00 A4 28 07 00 00 E2 01 01 00 08 34 E5 6B
                 evseStatus = PrivCommRxBuffer[8];
                 update_evseStatus(evseStatus);
-                logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) value:%d  Answer time request / comm heartbeat", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[12]);
+                logger.printfln("   cmd_%.2X seq:%.2X status:%d %s value:%d  time request / privCommCmdA4HBAck", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[12]);
                 {
                     time_t t = now(); // get current time
                     PrivCommTxBuffer[PayloadStart + 0] = 1; // type: 1 = answer ; 0x10 = init
@@ -860,10 +860,48 @@ void ENplus::loop()
                 }
                 break;
             case 0x05:
+//                                                                                        2  0  9  d  e  e  e  1                                                                          10             zeit
+//W (2021-08-07 07:43:39) [PRIV_COMM, 1919]: Rx(cmd_05 len:57) :  FA 03 00 00 05 E3 2F 00 32 30 39 64 65 65 65 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 15 08 07 07 2B 26 01 00 00 00 F7 F7
+//W (2021-08-07 07:43:39) [EN_WSS, 677]: send[0:41] [2,"87","Authorize",{"idTag":"209deee1"}]
+//W (2021-08-07 07:43:39) [EN_WSS, 712]: recv[0:44] [3,"87",{"idTagInfo":{"status":"Accepted"}}]
+//                                                                                                               // 40 = accept RFID charging
+//                                                                                                                                                                                        40
+//W (2021-08-07 07:43:39) [PRIV_COMM, 1764]: Tx(cmd_A5 len:47) :  FA 03 00 00 A5 19 25 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 D5 41
+//
+//"idTag":"50a674e1"
+//"status":"Invalid"
+//                                                                                        5  0  A  6  7  4  E  1                                                                          10             zeit
+//W (2021-08-07 07:47:56) [PRIV_COMM, 1919]: Rx(cmd_05 len:57) :  FA 03 00 00 05 FA 2F 00 35 30 61 36 37 34 65 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 15 08 07 07 2F 37 01 00 00 00 2E C2
+// D0 = reject RFID charging ?
+//                                                                                                                                                                                        D0
+//W (2021-08-07 07:47:56) [PRIV_COMM, 1764]: Tx(cmd_A5 len:47) :  FA 03 00 00 A5 1D 25 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 D0 00 00 00 00 A4 86
+//
+		// der GD sendet nut ein cmd_05 wenn er in einem bestimmten mode ist.
+		// vor dem cmd_05 sagt er dann: online_net_ok_start (das "create window fail" kommt aber immer)
+//[2021-08-07 07:52:33]
+//[m1] get_sn->5: 59 50 A6 74 E1
+//[2021-08-07 07:52:33]
+//[m1] auth_keyA->7: 06 59 FF FF FF FF FF
+//[2021-08-07 07:52:33] [win] create window !!!
+//[2021-08-07 07:52:33] [win] window had not init, create window fail
+//[2021-08-07 07:52:33] online_net_ok_start
+//                                                                  5  0  A  6  7  4  E  1                                                                          10             zeit
+//[2021-08-07 07:52:33] Tx(cmd_05 len:57) : FA 03 00 00 05 06 2F 00 35 30 61 36 37 34 65 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 15 08 07 07 34 21 01 00 00 00 13 DC
+// D0 = reject ?
+//[2021-08-07 07:52:34] Rx(cmd_A5 len:47) : FA 03 00 00 A5 20 25 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 D0 00 00 00 00 99 D0
+//[2021-08-07 07:52:34] cmd_A5 [privCommCmdA5CardAuthAck]!
+//[2021-08-07 07:52:34] cmdA5 countsta=1,leakmoneysta=3
+//[2021-08-07 07:52:34] cmdA5 order_id=
+//[2021-08-07 07:52:34] illegality_card
+//
+
                 // Command 05, payload 37 30 38 36 36 31 65 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00
                 sprintf(str, "%s", PrivCommRxBuffer+8);
                 logger.printfln("   cmd_%.2X seq:%.2X RFID card detected. ID: %s", cmd, seq, str);
-                break;
+                //Tx(cmd_A5 len:47) :  FA 03 00 00 A5 1D 25 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 D0 00 00 00 00 A4 86
+		// privCommCmdA5CardAuthAck PrivCommTxBuffer+40 = 0x40; // allow charging
+		// privCommCmdA5CardAuthAck PrivCommTxBuffer+40 = 0xD0; // decline charging
+		break;
             case 0x07:
                 logger.printfln("   cmd_%.2X seq:%.2X Charging started", cmd, seq);
                   //+"at "+String(message[74]+2000)+"/"+String(message[75])+"/"+String(message[76])+" "+String(message[77])+":"+String(message[78])+":"+String(message[79])
@@ -872,6 +910,14 @@ void ENplus::loop()
                   //);
                 break;
             case 0x08:
+		//TODO ACK
+		//
+// 
+		//
+// W (2021-08-07 07:55:19) [PRIV_COMM, 1764]: Tx(cmd_A8 len:21) :  FA 03 00 00 A8 25 0B 00 40 15 08 07 07 37 13 00 00|[2021-08-07 07:55:18] Rx(cmd_A8 len:21) : FA 03 00 00 A8 25 0B 00 40 15 08 07 07 37 13 00 00 00 00 1B BE 00 00 1B BE                                                                                                      |[2021-08-07 07:55:18] cmd_A8 [privCommCmdA8RTDataAck]!
+//D (2021-08-07 07:55:19) [OCPP_SRV, 3550]: ocpp_sevice_ntc_evt: 9, chan:0,sts:8                                    |[2021-08-07 07:55:18] charger A8 settime:21-8-7 7:55:19
+//D (2021-08-07 07:55:19) [OCPP_SRV, 3031]: startMode(0:app 1:card 2:vin):1, stopreson:Remote timestamp:2021-08-07T0|[2021-08-07 07:55:19] [comm] cmd03 cpNowSts=0, gunNowSts=1,gunPreSts=0,chargerreson=6
+//7:55:17Z idTag:50a674e1                                                                                           |[2021-08-07 07:55:19] Tx(cmd_03 len:24) : FA 03 00 00 03 18 0E 00 80 01 01 06 00 00 00 00 [2021-08-07 07:55:19] [
                 if (PrivCommRxBuffer[77] < 10) {  // statistics
                     // TODO is it true that PrivCommRxBuffer[77] is the evseStatus?
                     evseStatus = PrivCommRxBuffer[77];
@@ -928,6 +974,11 @@ void ENplus::loop()
 //W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:16) :  FA 03 00 00 AA 07 06 00 18 08 02 00 1E 00 95 80
 //W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:16) :  FA 03 00 00 0A 07 06 00 14 08 02 00 1E 00 93 CE
 //I (2021-04-11 18:36:27) [PRIV_COMM, 249]: ctrl_cmd set heart beat time out done -> 30      (=1E)
+//
+// [2021-08-07 07:55:18] Rx(cmd_A8 len:21) : FA 03 00 00 A8 25 0B 00 40 15 08 07 07 37 13 00 00 00 00 1B BE
+// [2021-08-07 07:55:18] cmd_A8 [privCommCmdA8RTDataAck]!
+// [2021-08-07 07:55:18] charger A8 settime:21-8-7 7:55:19
+//
                         logger.printfln("   cmd_%.2X seq:%.2X Heartbeat Timeout:%ds", cmd, seq, PrivCommRxBuffer[12]);
                         break;
                     case 0x09: // answer to ctrl_cmd set start power mode
@@ -959,6 +1010,8 @@ void ENplus::loop()
                 }//switch cmdAA answer processing
                 break;
             case 0x0E:
+// [2021-08-07 07:55:05] Tx(cmd_0E len:76) : FA 03 00 00 0E 11 42 00 00 00 00 00 00 00 00 00 00 0A 01 77 02 37 35 32 30 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 66 08 97 08 14 00 7A 01 01 00 00 00 00 00 00 00 00 00 00 DE 91
+// [2021-08-07 07:55:05] cmd0E_DutyData pwmMax:266
                 logger.printfln("   cmd_%.2X seq:%.2X duty:%d cpVolt:%d power factors:%d/%d/%d/%d offset0:%d offset1:%d leakcurr:%d AMBTemp:%d lockstatus:%d",
                     cmd, seq,
                     PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18],
