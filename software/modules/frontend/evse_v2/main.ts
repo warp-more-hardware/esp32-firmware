@@ -81,35 +81,35 @@ function update_evse_hardware_configuration(cfg: EVSEHardwareConfiguration) {
 }
 
 interface EVSELowLevelState {
-    low_level_mode_enabled: boolean,
     led_state: number,
     cp_pwm_duty_cycle: number,
     adc_values: Uint16Array,
     voltages: Int16Array,
     resistances: Uint32Array,
     gpio: boolean[],
-    hardware_version: number
 }
 
 function update_evse_low_level_state(state: EVSELowLevelState) {
-    util.update_button_group("btn_group_hardware_version", state.hardware_version - 14);
     util.update_button_group("btn_group_led_state", state.led_state);
 
-    for(let i = 0; i < 5; ++i) {
-        util.update_button_group(`btn_group_gpio${i}`, state.gpio[i] ? 1 : 0);
+    for(let i = 0; i < 24; ++i) {
+        //intentionally inverted: the high button is the first
+        util.update_button_group(`btn_group_gpio${i}`, state.gpio[i] ? 0 : 1);
     }
 
     $('#pwm_duty_cycle').val(util.toLocaleFixed(state.cp_pwm_duty_cycle / 10, 1) + " %");
 
-    $('#adc_value_0').val(state.adc_values[0]);
-    $('#adc_value_1').val(state.adc_values[1]);
+    for(let i = 0; i < 5; ++i) {
+        $(`#adc_value_${i}`).val(state.adc_values[i]);
+    }
 
-    $('#voltage_0').val(util.toLocaleFixed(state.voltages[0] / 1000.0, 3) + " V");
-    $('#voltage_1').val(util.toLocaleFixed(state.voltages[1] / 1000.0, 3) + " V");
-    $('#voltage_2').val(util.toLocaleFixed(state.voltages[2] / 1000.0, 3) + " V");
+    for(let i = 0; i < 5; ++i) {
+        $(`#voltage_${i}`).val(util.toLocaleFixed(state.voltages[i] / 1000.0, 3) + " V");
+    }
 
-    $('#resistance_0').val(state.resistances[0] + " Ω");
-    $('#resistance_1').val(state.resistances[1] + " Ω");
+    for(let i = 0; i < 5; ++i) {
+        $(`#resistance_${i}`).val(state.resistances[i] + " Ω");
+    }
 }
 
 interface EVSEMaxChargingCurrent {
@@ -224,24 +224,6 @@ function stop_charging() {
     });
 }
 
-interface EVSEUserCalibration {
-    user_calibration_active: boolean,
-    voltage_diff: number,
-    voltage_mul: number,
-    voltage_div: number,
-    resistance_2700: number,
-    resistance_880: number[],
-}
-
-function update_evse_user_calibration(c: EVSEUserCalibration) {
-    util.update_button_group("btn_group_user_calibration_enabled", c.user_calibration_active ? 1 : 0);
-    $('#voltage_diff').val(c.voltage_diff);
-    $('#voltage_mul').val(c.voltage_mul);
-    $('#voltage_div').val(c.voltage_div);
-    $('#resistance_2700').val(c.resistance_2700);
-    $('#resistance_880').val(c.resistance_880.join(", "));
-}
-
 interface EVSEManaged {
     managed: boolean;
 }
@@ -253,6 +235,27 @@ function update_evse_managed(m: EVSEManaged) {
     update_allowed_current_status();
 }
 
+interface EVSEDCFaultCurrentState {
+    state: number
+}
+
+function update_evse_dc_fault_current_state(s: EVSEDCFaultCurrentState) {
+    util.update_button_group("btn_group_dc_fault_current_state", s.state);
+
+    $('#evse_reset_dc_fault_current').prop('disabled', s.state == 0);
+}
+
+function reset_dc_fault_current() {
+    //TODO: show modal, call evse/reset_dc_fault_current
+    //evse_reset_dc_fault_modal
+
+}
+
+interface EVSEGPIOConfiguration {
+    enable_input: number,
+    input: number,
+    output: number
+}
 
 let debug_log = "";
 let meter_chunk = "";
@@ -360,6 +363,21 @@ export function init() {
     $("#status_charging_current_minimum").on("click", () => set_charging_current(6000));
     $("#status_charging_current_maximum").on("click", () => set_charging_current(32000));
 
+    $('#evse_reset_dc_fault_current').on("click", () => $('#evse_reset_dc_fault_modal').modal('show'));
+    $('#evse_reset_dc_fault_modal_button').on("click", () => {
+        $('#evse_reset_dc_fault_modal').modal('hide');
+        $.ajax({
+            url: '/evse/reset_dc_fault_current',
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({"password": 0xDC42FA23}),
+            error: (xhr, status, error) => {
+                util.add_alert("evse_reset_dc_fault_current_failed", "alert-danger", __("evse.script.reset_dc_fault_current_failed"), error + ": " + xhr.responseText);
+            }
+        });
+    });
+
+
     $("#status_stop_charging").on("click", stop_charging);
     $("#status_start_charging").on("click", start_charging);
 
@@ -385,40 +403,6 @@ export function init() {
 
         set_charging_current(Math.round(<number>input.val() * 1000));
     }, false);
-
-    $('#user_calibration_upload').on("change",(evt) => {
-        let files = (<HTMLInputElement>evt.target).files;
-        if (files.length < 1) {
-            return;
-        }
-        let reader = new FileReader();
-        reader.onload = (event) => {
-            $.ajax({
-                url: '/evse/user_calibration_update',
-                method: 'PUT',
-                contentType: 'application/json',
-                data: event.target.result
-            });
-        };
-        reader.readAsText(files[0]);
-    });
-
-    $("#user_calibration_reset").on("click", () => {
-        let reset_calibration : EVSEUserCalibration = {
-            "user_calibration_active": false,
-            "voltage_diff": 0,
-            "voltage_mul": 0,
-            "voltage_div": 0,
-            "resistance_2700": 0,
-            "resistance_880": [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-        };
-        $.ajax({
-            url: '/evse/user_calibration_update',
-            method: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify(reset_calibration)
-        });
-    });
 
     $("#debug_start").on("click", debug_start);
     $("#debug_stop").on("click", debug_stop);
@@ -465,12 +449,12 @@ export function addEventListeners(source: EventSource) {
         update_evse_auto_start_charging(<EVSEAutoStart>(JSON.parse(e.data)));
     }, false);
 
-    source.addEventListener('evse/user_calibration', function (e: util.SSE) {
-        update_evse_user_calibration(<EVSEUserCalibration>(JSON.parse(e.data)));
-    }, false);
-
     source.addEventListener("evse/managed", function (e: util.SSE) {
         update_evse_managed(<EVSEManaged>(JSON.parse(e.data)));
+    }, false);
+
+    source.addEventListener("evse/dc_fault_current_state", function (e: util.SSE) {
+        update_evse_dc_fault_current_state(<EVSEDCFaultCurrentState>(JSON.parse(e.data)));
     }, false);
 
     source.addEventListener("evse/debug_header", function (e: util.SSE) {
@@ -492,8 +476,8 @@ export function addEventListeners(source: EventSource) {
 }
 
 export function updateLockState(module_init: any) {
-    $('#sidebar-evse').prop('hidden', !module_init.evse);
-    $('#status-evse').prop('hidden', !module_init.evse);
+    $('#sidebar-evse').prop('hidden', !module_init.evse_v2);
+    $('#status-evse').prop('hidden', !module_init.evse_v2);
 }
 
 export function getTranslation(lang: string) {
@@ -542,10 +526,10 @@ export function getTranslation(lang: string) {
                     "error_state": "Fehlerzustand",
                     "error_state_desc": "<a href=\"https://www.warp-charger.com/#documents\">siehe Betriebsanleitung für Details</a>",
                     "error_ok": "OK",
-                    "error_switch": "Schalterfehler",
-                    "error_calibration": "Kalibrierungsfehler",
-                    "error_contactor": "Schützfehler",
-                    "error_communication": "Kommunikationsfehler",
+                    "error_switch": "Schalter",
+                    "error_contactor": "Schütz",
+                    "error_communication": "Kommunikation",
+                    "error_dc_fault_current": "DC-Fehlerstromschutz",
                     "lock_state": "Kabelverriegelung",
                     "lock_init": "Start",
                     "lock_open": "Offen",
@@ -571,6 +555,9 @@ export function getTranslation(lang: string) {
                     "charging_current_managed": "Lastmanagement",
                     "low_level_state": "Low-Level-Zustand",
                     "low_level_state_show": "Anzeigen / Verstecken",
+                    "low_level_mode": "Low-Level-Modus",
+                    "low_level_state_disabled": "Deaktiviert",
+                    "low_level_state_enabled": "Aktiviert",
                     "led_state": "LED-Zustand",
                     "led_state_off": "Aus",
                     "led_state_on": "An",
@@ -585,7 +572,12 @@ export function getTranslation(lang: string) {
                     "resistances": "Widerstände",
                     "resistance_names": "PE-CP, PE-PP",
                     "gpios": "GPIOs",
-                    "gpio_names": "Eingang, Ausgang, Motoreingangsschalter, Relais, Motorfehler",
+                    "gpio_names_0": "Stromkonfiguration 0, Motorfehler, Gleichstromfehler, Stromkonfiguration 1",
+                    "gpio_names_1": "DC-Fehlerstromschutz-Test, Abschaltung, Taster, CP-PWM",
+                    "gpio_names_2": "Motoreingangsschalter, Schützsteuerung, Konfigurierbarer Ausgang, CP-Trennung",
+                    "gpio_names_3": "Motor aktiv, Motor-Phase, Schützprüfung vorher, Schützprüfung nachher",
+                    "gpio_names_4": "Konfigurierbarer Eingang, DC X6, DC X30, LED",
+                    "gpio_names_5": "Nicht belegt",
                     "gpio_low": "Low",
                     "gpio_high": "High",
                     "debug": "Ladeprotokoll",
@@ -593,26 +585,36 @@ export function getTranslation(lang: string) {
                     "debug_stop": "Stop + Download",
                     "debug_description": "Ladeprotokoll erstellen",
                     "debug_description_muted": "zur Diagnose bei Ladeproblemen",
-                    "user_calibration": "Kalibrierungsstatus",
-                    "user_calibration_state_disabled": "Werkseinstellungen",
-                    "user_calibration_state_enabled": "Modifiziert",
-                    "voltage_calibration": "Spannungskalibrierung",
-                    "voltage_calibration_names": "Diff, Mul, Div",
-                    "resistance_2700": "Widerstandskalibrierung 2700Ω",
-                    "resistance_880": "Widerstandskalibrierung 880Ω",
-                    "user_calibration_description": "Kalibrierung",
-                    "user_calibration_description_muted": "",
-                    "user_calibration_download": "Herunterladen",
-                    "user_calibration_browse": "Hochladen",
-                    "user_calibration_select_file": "Kalibrierungsdatei auswählen",
-                    "user_calibration_reset": "Zurücksetzen",
-                    "hardware_version": "Hardware-Version",
-                    "hardware_version_14": "1.4",
-                    "hardware_version_15": "1.5",
                     "settings": "Einstellungen",
                     "charge_management_description": "Lastmanagement",
                     "charge_management_description_muted": "<a href=\"https://www.warp-charger.com/#documents\">siehe Betriebsanleitung für Details</a>",
                     "charge_management_enable": "Erlaubt anderen Wallboxen diese zu steuern",
+
+                    "dc_fault_current_state": "DC-Fehlerstrom&shy;zustand",
+                    "dc_fault_current_state_desc": "",
+                    "dc_fault_current_ok": "OK",
+                    "dc_fault_current_6_ma": "Gleichstromfehler",
+                    "dc_fault_current_system": "Systemfehler",
+                    "dc_fault_current_unknown": "Unbekannter Fehler",
+                    "dc_fault_current_calibration": "Kalibrierungsfehler",
+                    "dc_fault_current_reset": "Zurücksetzen",
+
+                    "reset_dc_fault_title": "Zurücksetzen des DC-Fehlerstromschutzmoduls",
+                    "reset_dc_fault_content": "Durch das Zurücksetzen des Moduls kann wieder geladen werden. <b>Es muss sichergestellt sein, dass der Grund für das Auslösen des Moduls behoben wurde!</b> <a href=\"https://www.warp-charger.com/#documents\">Siehe Betriebsanleitung für Details.</a> Soll das DC-Fehlerstromschutzmodul wirklich zurückgesetzt werden?",
+                    "abort": "Abbrechen",
+                    "reset": "Zurücksetzen",
+
+                    "gpio_enable": "Abschalteingang",
+                    "gpio_enable_muted": "<a href=\"https://www.warp-charger.com/#documents\">siehe Betriebsanleitung für Details</a>",
+                    "gpio_enable_not_configured": "Nicht konfiguriert",
+                    "gpio_enable_active_open": "Abschalten wenn geschlossen",
+                    "gpio_enable_active_close": "Abschalten wenn geöffnet",
+                    "not_configured": "Nicht konfiguriert",
+                    "todo": "TODO",
+                    "gpio_in": "Konfigurierbarer Eingang",
+                    "gpio_in_muted": " ",
+                    "gpio_out": "Konfigurierbarer Ausgang",
+                    "gpio_out_muted": " ",
                 },
                 "script": {
                     "error_code": "Fehlercode",
@@ -641,7 +643,8 @@ export function getTranslation(lang: string) {
                     "outgoing": "Ladekabel",
                     "incoming": "Zuleitung",
 
-                    "save_failed": "(De-)Aktivieren des Lastmanagements fehlgeschlagen"
+                    "save_failed": "(De-)Aktivieren des Lastmanagements fehlgeschlagen",
+                    "reset_dc_fault_current_failed": "Zurücksetzen des DC-Fehlerstromschutzmoduls fehlgeschlagen"
                 }
             }
         },
@@ -718,6 +721,9 @@ export function getTranslation(lang: string) {
                     "charging_current_managed": "Managed",
                     "low_level_state": "Low Level State",
                     "low_level_state_show": "Show / Hide",
+                    "low_level_mode": "Low level mode",
+                    "low_level_state_disabled": "Disabled",
+                    "low_level_state_enabled": "Enabled",
                     "led_state": "LED state",
                     "led_state_off": "Off",
                     "led_state_on": "On",
@@ -741,26 +747,11 @@ export function getTranslation(lang: string) {
                     "debug_description": "Create charge log",
                     "debug_description_muted": "to diagnose charging problems",
 
-                    "user_calibration": "Calibration state",
-                    "user_calibration_state_disabled": "Factory settings",
-                    "user_calibration_state_enabled": "Modified",
-                    "voltage_calibration": "Voltage calibration",
-                    "voltage_calibration_names": "diff, mul, div",
-                    "resistance_2700": "Resistance calibration 2700Ω",
-                    "resistance_880": "Resistance calibration 880Ω",
-                    "user_calibration_description": "Calibration",
-                    "user_calibration_description_muted": "",
-                    "user_calibration_download": "Download",
-                    "user_calibration_browse": "Upload",
-                    "user_calibration_select_file": "Select calibration file",
-                    "user_calibration_reset": "Reset",
-                    "hardware_version": "Hardware version",
-                    "hardware_version_14": "1.4",
-                    "hardware_version_15": "1.5",
                     "settings": "Settings",
                     "charge_management_description": "Charge management",
                     "charge_management_description_muted": "<a href=\"https://www.warp-charger.com/#documents\">see manual for details</a>",
                     "charge_management_enable": "Enables other chargers to control this one",
+
                 },
                 "script": {
                     "error_code": "Error code",
