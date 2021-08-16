@@ -29,7 +29,7 @@ extern TaskScheduler task_scheduler;
 
 #define GREEN_LED 25
 #define BLUE_LED 33
-#define BUTTON 0
+#define BUTTON T9
 
 TF_HalContext hal;
 extern uint32_t uid_numeric;
@@ -72,7 +72,7 @@ void ENplusHardware::loop()
     static bool last_btn_value = false;
     static uint32_t last_btn_change = 0;
 
-    bool btn = digitalRead(BUTTON);
+    bool btn = touchRead(BUTTON);
     if (!factory_reset_requested)
         digitalWrite(GREEN_LED, btn);
 
