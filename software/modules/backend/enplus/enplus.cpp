@@ -411,13 +411,16 @@ int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
 }
 
 int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
-    logger.printfln("EVSE set charging limit to %d Ampere", uint8_t(max_current/1000));
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
     evse_config.get("max_current_configured")->updateUint(max_current); // this is persistent
     String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
         {"auto_start_charging", evse_auto_start_charging.get("auto_start_charging")->asBool()},
         {"max_current_configured", max_current}
     }});
+    update_evse_state();
+    uint8_t allowed_charging_current = evse_state.get("allowed_charging_current")->asUint()/1000;
+    logger.printfln("EVSE set configured charging limit to %d Ampere", uint8_t(max_current/1000));
+    logger.printfln("EVSE calculated allowed charging limit is %d Ampere", allowed_charging_current);
 
     time_t t=now();     // get current time
     ChargingSettings[2] = year(t) -2000;
@@ -426,7 +429,7 @@ int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current
     ChargingSettings[5] = hour(t);
     ChargingSettings[6] = minute(t);
     ChargingSettings[7] = second(t);
-    ChargingSettings[17] = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
+    ChargingSettings[17] = allowed_charging_current;
     sendCommand(ChargingSettings, sizeof(ChargingSettings));
 
     return 0;
@@ -446,9 +449,11 @@ int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
     allowed_charging_current = min(
         evse_max_charging_current.get("max_current_incoming_cable")->asUint(),
         evse_max_charging_current.get("max_current_outgoing_cable")->asUint());
-    allowed_charging_current = min(
-        allowed_charging_current,
-        evse_max_charging_current.get("max_current_managed")->asUint());
+    if(evse_managed.get("managed")->asBool()) {
+        allowed_charging_current = min(
+            allowed_charging_current,
+            evse_max_charging_current.get("max_current_managed")->asUint());
+    }
     *ret_allowed_charging_current = min(
         allowed_charging_current,
         evse_max_charging_current.get("max_current_configured")->asUint());
@@ -482,9 +487,9 @@ void ENplus::setup()
         update_evse_auto_start_charging();
     }, 0, 1000);
 
-    task_scheduler.scheduleWithFixedDelay("update_evse_managed", [this](){
-        update_evse_managed();
-    }, 0, 1000);
+//    task_scheduler.scheduleWithFixedDelay("update_evse_managed", [this](){
+//        update_evse_managed();
+//    }, 0, 1000);
 
     task_scheduler.scheduleWithFixedDelay("update_evse_user_calibration", [this](){
         update_evse_user_calibration();
