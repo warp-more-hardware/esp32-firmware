@@ -31,7 +31,6 @@
 #include "modules.h"
 #include "HardwareSerial.h"
 #include "Time/TimeLib.h"
-//#include "SPIFFS.h"
 
 extern EventLog logger;
 
@@ -253,6 +252,7 @@ ENplus::ENplus()
 {
     evse_config = Config::Object({
         {"auto_start_charging", Config::Bool(true)},
+        {"managed", Config::Bool(true)},
         {"max_current_configured", Config::Uint16(0)}
     });
 
@@ -394,29 +394,34 @@ int ENplus::bs_evse_stop_charging(TF_EVSE *evse) {
     return 0;
 }
 
+int ENplus::bs_evse_persist_config() {
+    String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
+        {"auto_start_charging", evse_auto_start_charging.get("auto_start_charging")->asBool()},
+        {"max_current_configured", evse_max_charging_current.get("max_current_configured")->asUint()},
+        {"managed", evse_managed.get("managed")->asBool()}
+    }});
+    if (error != "") {
+        logger.printfln("Failed to save config: %s", error.c_str());
+        return 500;
+    } else {
+	logger.printfln("saved config - auto_start_charging: %s, managed: %s, max_current_configured: %d",
+            evse_config.get("auto_start_charging")->asBool() ?"true":"false",
+            evse_config.get("managed")->asBool() ?"true":"false",
+            evse_config.get("max_current_configured")->asUint());
+        return 0;
+    }
+}
+
 int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
     logger.printfln("EVSE set auto start charging to %s", autostart ? "true" :"false");
     evse_auto_start_charging.get("auto_start_charging")->updateBool(autostart);
-    evse_config.get("auto_start_charging")->updateBool(autostart); // this is persistent
-    String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
-        {"auto_start_charging", autostart},
-        {"max_current_configured", evse_current_limit.get("current")->asUint()}
-    }});
-
-    if (error != "") {
-        logger.printfln("Failed to update auto_start_charging: %s", error.c_str());
-    }
-    // TODO persist setting on FS?
+    bs_evse_persist_config();
     return 0;
 }
 
 int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
-    evse_config.get("max_current_configured")->updateUint(max_current); // this is persistent
-    String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
-        {"auto_start_charging", evse_auto_start_charging.get("auto_start_charging")->asBool()},
-        {"max_current_configured", max_current}
-    }});
+    bs_evse_persist_config();
     update_evse_state();
     uint8_t allowed_charging_current = evse_state.get("allowed_charging_current")->asUint()/1000;
     logger.printfln("EVSE set configured charging limit to %d Ampere", uint8_t(max_current/1000));
@@ -471,8 +476,13 @@ void ENplus::setup()
     if(!api.restorePersistentConfig("evse/config", &evse_config)) {
         logger.printfln("EVSE error, could not restore persistent storage config");
     } else {
-        evse_auto_start_charging.get("auto_start_charging")->updateBool(evse_config.get("auto_start_charging")->asBool());
-        evse_max_charging_current.get("max_current_configured")->updateUint(evse_config.get("max_current_configured")->asUint());
+        evse_auto_start_charging.get("auto_start_charging")     -> updateBool(evse_config.get("auto_start_charging")->asBool());
+        evse_max_charging_current.get("max_current_configured") -> updateUint(evse_config.get("max_current_configured")->asUint());
+        evse_managed.get("managed")                             -> updateBool(evse_config.get("managed")->asBool());
+	logger.printfln("restored config - auto_start_charging: %s, managed: %s, max_current_configured: %d",
+            evse_config.get("auto_start_charging")->asBool() ?"true":"false",
+            evse_config.get("managed")->asBool() ?"true":"false",
+            evse_config.get("max_current_configured")->asUint());
     }
 
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
@@ -482,14 +492,6 @@ void ENplus::setup()
     task_scheduler.scheduleWithFixedDelay("update_evse_low_level_state", [this](){
         update_evse_low_level_state();
     }, 0, 1000);
-
-    task_scheduler.scheduleWithFixedDelay("update_evse_auto_start_charging", [this](){
-        update_evse_auto_start_charging();
-    }, 0, 1000);
-
-//    task_scheduler.scheduleWithFixedDelay("update_evse_managed", [this](){
-//        update_evse_managed();
-//    }, 0, 1000);
 
     task_scheduler.scheduleWithFixedDelay("update_evse_user_calibration", [this](){
         update_evse_user_calibration();
@@ -502,6 +504,8 @@ void ENplus::setup()
 #ifdef MODULE_CM_NETWORKING_AVAILABLE
     cm_networking.register_client([this](uint16_t current){
         set_managed_current(current);
+        //evse_managed.get("managed")->updateBool(true);
+	logger.printfln("evse_managed: %s, current: %d", evse_managed.get("managed")->asBool() ?"true":"false", current);
     });
 
     task_scheduler.scheduleWithFixedDelay("evse_send_cm_networking_client", [this](){
@@ -639,8 +643,8 @@ void ENplus::register_urls()
 
     api.addState("evse/managed", &evse_managed, {}, 1000);
     api.addCommand("evse/managed_update", &evse_managed_update, {"password"}, [this](){
-        //TODOTODO set managed current as local value, not in the tf_evse
-        //is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
+        evse_managed.get("managed")->updateBool(evse_managed_update.get("managed")->asBool());
+        bs_evse_persist_config();
     }, true);
 
     api.addState("evse/user_calibration", &evse_user_calibration, {}, 1000);
@@ -1230,48 +1234,6 @@ void ENplus::update_evse_state() {
     evse_state.get("lock_state")->updateUint(lock_state);
     //evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
     evse_state.get("uptime")->updateUint(uptime);
-
-//    if (contactor_error_changed) {
-//        if (contactor_error != 0) {
-//            logger.printfln("EVSE: Contactor error %d", contactor_error);
-//        } else {
-//            logger.printfln("EVSE: Contactor error cleared");
-//        }
-//    }
-//
-//    if (error_state_changed) {
-//        if (error_state != 0) {
-//            logger.printfln("EVSE: Error state %d", error_state);
-//        } else {
-//            logger.printfln("EVSE: Error state cleared");
-//        }
-//    }
-}
-
-void ENplus::update_evse_auto_start_charging() {
-    if(!initialized)
-        return;
-    bool auto_start_charging;
-
-//    int rc = tf_evse_get_charging_autostart(&evse,
-//        &auto_start_charging);
-
-    //auto_start_charging = false;
-
-    //logger.printfln("EVSE auto start charging is %s", evse_auto_start_charging.get("auto_start_charging")->asBool() ? "true" :"false");
-    //evse_auto_start_charging.get("auto_start_charging")->updateBool(auto_start_charging);
-}
-
-void ENplus::update_evse_managed() {
-    if(!initialized)
-        return;
-    bool managed;
-
-//    int rc = tf_evse_get_managed(&evse,
-//        &managed);
-
-//    evse_managed.get("managed")->updateBool(managed);
-    evse_managed.get("managed")->updateBool(true);
 }
 
 void ENplus::update_evse_charge_stats() {

@@ -45,6 +45,12 @@ extern bool firmware_update_allowed;
 
 sonoff::sonoff()
 {
+    evse_config = Config::Object({
+        {"auto_start_charging", Config::Bool(true)},
+        {"managed", Config::Bool(true)},
+        {"max_current_configured", Config::Uint16(0)}
+    });
+
     evse_state = Config::Object({
         {"iec61851_state", Config::Uint8(0)},
         {"vehicle_state", Config::Uint8(0)},
@@ -88,8 +94,8 @@ sonoff::sonoff()
 
     evse_max_charging_current = Config::Object ({
         {"max_current_configured", Config::Uint16(0)},
-        {"max_current_incoming_cable", Config::Uint16(0)},
-        {"max_current_outgoing_cable", Config::Uint16(0)},
+        {"max_current_incoming_cable", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
+        {"max_current_outgoing_cable", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
         {"max_current_managed", Config::Uint16(0)},
     });
 
@@ -157,6 +163,42 @@ int sonoff::bs_evse_stop_charging(TF_EVSE *evse) {
     return 0;
 }
 
+int sonoff::bs_evse_persist_config() {
+    String error = api.callCommand("evse/config_update", Config::ConfUpdateObject{{
+        {"auto_start_charging", evse_auto_start_charging.get("auto_start_charging")->asBool()},
+        {"max_current_configured", evse_max_charging_current.get("max_current_configured")->asUint()},
+        {"managed", evse_managed.get("managed")->asBool()}
+    }});
+    if (error != "") {
+        logger.printfln("Failed to save config: %s", error.c_str());
+        return 500;
+    } else {
+	logger.printfln("saved config - auto_start_charging: %s, managed: %s, max_current_configured: %d",
+            evse_config.get("auto_start_charging")->asBool() ?"true":"false",
+            evse_config.get("managed")->asBool() ?"true":"false",
+            evse_config.get("max_current_configured")->asUint());
+        return 0;
+    }
+}
+
+int sonoff::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
+    logger.printfln("EVSE set auto start charging to %s", autostart ? "true" :"false");
+    evse_auto_start_charging.get("auto_start_charging")->updateBool(autostart);
+    bs_evse_persist_config();
+    return 0;
+}
+
+int sonoff::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
+    evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
+    bs_evse_persist_config();
+    update_evse_state();
+    uint8_t allowed_charging_current = evse_state.get("allowed_charging_current")->asUint()/1000;
+    logger.printfln("EVSE set configured charging limit to %d Ampere", uint8_t(max_current/1000));
+    logger.printfln("EVSE calculated allowed charging limit is %d Ampere", allowed_charging_current);
+
+    return 0;
+}
+
 int sonoff::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
 //    bool response_expected = true;
 //    tf_tfp_prepare_send(evse->tfp, TF_EVSE_FUNCTION_GET_STATE, 0, 17, response_expected);
@@ -167,7 +209,18 @@ int sonoff::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
     *ret_contactor_state = 2;
     *ret_contactor_error = 0;
     *ret_charge_release = 1; // manuell 0 automatisch
-    *ret_allowed_charging_current = 8000;
+    // find the charging current maximum
+    allowed_charging_current = min(
+        evse_max_charging_current.get("max_current_incoming_cable")->asUint(),
+        evse_max_charging_current.get("max_current_outgoing_cable")->asUint());
+    if(evse_managed.get("managed")->asBool()) {
+        allowed_charging_current = min(
+            allowed_charging_current,
+            evse_max_charging_current.get("max_current_managed")->asUint());
+    }
+    *ret_allowed_charging_current = min(
+        allowed_charging_current,
+        evse_max_charging_current.get("max_current_configured")->asUint());
     *ret_error_state = 0;
     *ret_lock_state = 0;
     *ret_time_since_state_change = evse_state.get("time_since_state_change")->asUint();
@@ -176,21 +229,19 @@ int sonoff::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_
     return TF_E_OK;
 }
 
-int sonoff::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
-    logger.printfln("EVSE set charging limit to %d Ampere.", uint8_t(max_current/1000));
-    evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
-
-    return 0;
-}
-
 void sonoff::setup()
 {
     setup_evse();
     if(!api.restorePersistentConfig("evse/config", &evse_config)) {
         logger.printfln("EVSE error, could not restore persistent storage config");
     } else {
-        evse_auto_start_charging.get("auto_start_charging")->updateBool(evse_config.get("auto_start_charging")->asBool());
-        evse_max_charging_current.get("max_current_configured")->updateUint(evse_config.get("max_current_configured")->asUint());
+        evse_auto_start_charging.get("auto_start_charging")     -> updateBool(evse_config.get("auto_start_charging")->asBool());
+        evse_max_charging_current.get("max_current_configured") -> updateUint(evse_config.get("max_current_configured")->asUint());
+        evse_managed.get("managed")                             -> updateBool(evse_config.get("managed")->asBool());
+	logger.printfln("restored config - auto_start_charging: %s, managed: %s, max_current_configured: %d",
+            evse_config.get("auto_start_charging")->asBool() ?"true":"false",
+            evse_config.get("managed")->asBool() ?"true":"false",
+            evse_config.get("max_current_configured")->asUint());
     }
 
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
@@ -199,14 +250,6 @@ void sonoff::setup()
 
     task_scheduler.scheduleWithFixedDelay("update_evse_low_level_state", [this](){
         update_evse_low_level_state();
-    }, 0, 1000);
-
-    task_scheduler.scheduleWithFixedDelay("update_evse_auto_start_charging", [this](){
-        update_evse_auto_start_charging();
-    }, 0, 1000);
-
-    task_scheduler.scheduleWithFixedDelay("update_evse_managed", [this](){
-        update_evse_managed();
     }, 0, 1000);
 
     task_scheduler.scheduleWithFixedDelay("update_evse_user_calibration", [this](){
@@ -336,9 +379,9 @@ void sonoff::register_urls()
     api.addState("evse/auto_start_charging", &evse_auto_start_charging, {}, 1000);
     api.addState("evse/privcomm", &evse_privcomm, {}, 1000);
 
-    //api.addCommand("evse/auto_start_charging_update", &evse_auto_start_charging_update, {}, [this](){
-    //    bs_evse_set_charging_autostart(&evse, evse_auto_start_charging_update.get("auto_start_charging")->asBool());
-    //}, false);
+    api.addCommand("evse/auto_start_charging_update", &evse_auto_start_charging_update, {}, [this](){
+        bs_evse_set_charging_autostart(&evse, evse_auto_start_charging_update.get("auto_start_charging")->asBool());
+    }, false);
 
     api.addCommand("evse/current_limit", &evse_current_limit, {}, [this](){
         bs_evse_set_max_charging_current(&evse, evse_current_limit.get("current")->asUint());
@@ -353,8 +396,8 @@ void sonoff::register_urls()
 
     api.addState("evse/managed", &evse_managed, {}, 1000);
     api.addCommand("evse/managed_update", &evse_managed_update, {"password"}, [this](){
-        //TODOTODO set managed current as local value, not in the tf_evse
-        //is_in_bootloader(tf_evse_set_managed(&evse, evse_managed_update.get("managed")->asBool(), evse_managed_update.get("password")->asUint()));
+        evse_managed.get("managed")->updateBool(evse_managed_update.get("managed")->asBool());
+        bs_evse_persist_config();
     }, true);
 
     api.addState("evse/user_calibration", &evse_user_calibration, {}, 1000);
@@ -410,6 +453,7 @@ void sonoff::loop()
     if(switch1 != switch1_before) {
         digitalWrite(RELAY1, switch1);
         logger.printfln("Der Energieversorger %s das Laden von Elektroautos.", switch1 ? "verbietet" : "erlaubt");
+	//TODO max out the current to cut off the others from charging
     }
     if(switch2 != switch2_before) {
         digitalWrite(RELAY2, switch2);
@@ -498,6 +542,7 @@ void sonoff::update_evse_state() {
     if(!initialized)
         return;
     uint8_t iec61851_state, vehicle_state, contactor_state, contactor_error, charge_release, error_state, lock_state;
+    uint16_t last_allowed_charging_current = evse_state.get("allowed_charging_current")->asUint();
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
@@ -520,74 +565,16 @@ void sonoff::update_evse_state() {
     evse_state.get("contactor_state")->updateUint(contactor_state);
     bool contactor_error_changed = evse_state.get("contactor_error")->updateUint(contactor_error);
     evse_state.get("charge_release")->updateUint(charge_release);
-    evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
+    if(last_allowed_charging_current != allowed_charging_current) {
+        evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
+        logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
+    }
     bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
     evse_state.get("lock_state")->updateUint(lock_state);
     //evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
     evse_state.get("uptime")->updateUint(uptime);
 }
 
-void sonoff::update_evse_max_charging_current() {
-    if(!initialized)
-        return;
-    uint16_t configured, incoming, outgoing, managed;
-
-//    int rc = tf_evse_get_max_charging_current(&evse,
-//        &configured,
-//        &incoming,
-//        &outgoing,
-//        &managed);
-//
-//    if(rc != TF_E_OK) {
-//        is_in_bootloader(rc);
-//        return;
-//    }
-
-    configured = 7000;
-    incoming = 32000;
-    outgoing = 16000;
-    managed = 15000;
-
-    evse_max_charging_current.get("max_current_configured")->updateUint(configured);
-    evse_max_charging_current.get("max_current_incoming_cable")->updateUint(incoming);
-    evse_max_charging_current.get("max_current_outgoing_cable")->updateUint(outgoing);
-    evse_max_charging_current.get("max_current_managed")->updateUint(managed);
-    digitalWrite(RELAY2, charging);
-}
-
-void sonoff::update_evse_auto_start_charging() {
-    if(!initialized)
-        return;
-    bool auto_start_charging;
-
-//    int rc = tf_evse_get_charging_autostart(&evse,
-//        &auto_start_charging);
-//
-//    if(rc != TF_E_OK) {
-//        is_in_bootloader(rc);
-//        return;
-//    }
-
-    auto_start_charging = false;
-
-    evse_auto_start_charging.get("auto_start_charging")->updateBool(auto_start_charging);
-}
-
-void sonoff::update_evse_managed() {
-    if(!initialized)
-        return;
-    bool managed;
-
-//    int rc = tf_evse_get_managed(&evse,
-//        &managed);
-//    if(rc != TF_E_OK) {
-//        is_in_bootloader(rc);
-//        return;
-//    }
-
-    //evse_managed.get("managed")->updateBool(managed);
-    evse_managed.get("managed")->updateBool(true);
-}
 
 void sonoff::update_evse_user_calibration() {
     if(!initialized)
