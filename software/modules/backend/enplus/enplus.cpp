@@ -826,13 +826,10 @@ void ENplus::loop()
                     evse_hardware_configuration.get("Hardware")->asString().c_str(),
                     evse_hardware_configuration.get("FirmwareVersion")->asString().c_str());
                 if(!evse_hardware_configuration.get("initialized")->asBool()) {
-                    logger.printfln("Hardware == AC011K-AU-25 : %s", evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0 ? "true" : "false");
-                    logger.printfln("FirmwareVersion == 1.1.27 : %s", evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.27") == 0 ? "true" : "false");
-                    logger.printfln("FirmwareVersion == 1.1.258 : %s", evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.258") == 0 ? "true" : "false");
                     initialized =
                         evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
-                        (evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.27") == 0    ||
-                         evse_hardware_configuration.get("FirmwareVersion")->asString().compareTo("1.1.258") == 0   );
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 258;    // higest known working version (we assume earlier versions work as well)
                     evse_hardware_configuration.get("initialized")->updateBool(initialized);
                     if(initialized) {
                          logger.printfln("EN+ GD EVSE initialized.");
