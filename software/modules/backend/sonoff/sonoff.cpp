@@ -48,7 +48,7 @@ sonoff::sonoff()
     evse_config = Config::Object({
         {"auto_start_charging", Config::Bool(true)},
         {"managed", Config::Bool(true)},
-        {"max_current_configured", Config::Uint16(std::numeric_limits<std::uint16_t>::max())}
+        {"max_current_configured", Config::Uint16(0)}
     });
 
     evse_state = Config::Object({
@@ -96,7 +96,7 @@ sonoff::sonoff()
         {"max_current_configured", Config::Uint16(0)},
         {"max_current_incoming_cable", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
         {"max_current_outgoing_cable", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
-        {"max_current_managed", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
+        {"max_current_managed", Config::Uint16(0)},
     });
 
     evse_auto_start_charging = Config::Object({
@@ -107,7 +107,7 @@ sonoff::sonoff()
         {"auto_start_charging", Config::Bool(true)}
     });
     evse_current_limit = Config::Object({
-        {"current", Config::Uint(std::numeric_limits<std::uint16_t>::max(), 6000, std::numeric_limits<std::uint16_t>::max())}
+        {"current", Config::Uint(32000, 6000, 32000)}
     });
 
     evse_stop_charging = Config::Null();
@@ -153,8 +153,7 @@ sonoff::sonoff()
 
 int sonoff::bs_evse_start_charging(TF_EVSE *evse) {
     charging = true;
-    uint8_t allowed_charging_current = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
-    logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
+    logger.printfln("EVSE start charging");
     return 0;
 }
 
@@ -435,23 +434,33 @@ void sonoff::register_urls()
 
 void sonoff::loop()
 {
-//    static bool switch1_before;
-//    static bool switch2_before;
-//
-//    switch1_before = switch1;
-//    switch2_before = switch2;
-//    switch1 = digitalRead(SWITCH1);
-//    switch2 = digitalRead(SWITCH2);
-//
-//    if(switch1 != switch1_before) {
-//        digitalWrite(RELAY1, switch1);
-//        logger.printfln("Der Energieversorger %s das Laden von Elektroautos.", switch1 ? "verbietet" : "erlaubt");
-//	//TODO max out the current to cut off the others from charging
-//    }
-//    if(switch2 != switch2_before) {
-//        digitalWrite(RELAY2, switch2);
-//        logger.printfln("Schalteingang 2 ist jetzt %sgeschaltet.", switch2 ? "aus" : "ein");
-//    }
+    if(initialized) {
+        static bool switch1_before;
+        static bool switch2_before;
+        static uint32_t charge_manager_available_current;
+
+        switch1_before = switch1;
+        switch2_before = switch2;
+        switch1 = digitalRead(SWITCH1);
+        switch2 = digitalRead(SWITCH2);
+
+        if(switch1 != switch1_before) {
+            digitalWrite(RELAY1, switch1);
+            logger.printfln("Der Energieversorger %s das Laden von Elektroautos.", switch1 ? "verbietet" : "erlaubt");
+            if(switch1) {
+                charge_manager_available_current = api.getState("charge_manager/available_current")->get("current")->asUint();
+                api.callCommand("charge_manager/available_current_update", Config::ConfUpdateObject{{ {"current", 0} }}); // der Rundsteuerempfänger sagt NEIN
+                api.blockCommand("charge_manager/available_current_update", "Rundsteuerempfänger blockiert!");
+            } else {
+                api.callCommand("charge_manager/available_current_update", Config::ConfUpdateObject{{ {"current", charge_manager_available_current} }}); // alles wieder gut, restore the saved value
+                api.blockCommand("charge_manager/available_current_update", "");
+            }
+        }
+        if(switch2 != switch2_before) {
+            digitalWrite(RELAY2, switch2);
+            logger.printfln("Schalteingang 2 ist jetzt %sgeschaltet.", switch2 ? "aus" : "ein");
+        }
+    }
 
 #ifdef MODULE_WS_AVAILABLE
     static uint32_t last_debug = 0;
@@ -460,7 +469,6 @@ void sonoff::loop()
         ws.pushStateUpdate(this->get_evse_debug_line(), "evse/debug");
     }
 #endif
-
 }
 
 void sonoff::setup_evse()
