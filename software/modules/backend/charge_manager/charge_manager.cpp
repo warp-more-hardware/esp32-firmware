@@ -37,11 +37,6 @@
 extern API api;
 extern TaskScheduler task_scheduler;
 
-#define RELAY1 27
-#define RELAY2 14
-#define SWITCH1 32
-#define SWITCH2 33
-
 ChargeManager::ChargeManager()
 {
     charge_manager_config = Config::Object({
@@ -170,13 +165,6 @@ void ChargeManager::start_manager_task() {
 
 void ChargeManager::setup()
 {
-    pinMode(RELAY1, OUTPUT);
-    pinMode(RELAY2, OUTPUT);
-    pinMode(SWITCH1, INPUT);
-    pinMode(SWITCH2, INPUT);
-    digitalWrite(RELAY1, digitalRead(SWITCH1));
-    digitalWrite(RELAY2, digitalRead(SWITCH2));
-
     api.restorePersistentConfig("charge_manager/config", &charge_manager_config);
 
     charge_manager_config_in_use = charge_manager_config;
