@@ -37,6 +37,11 @@
 extern API api;
 extern TaskScheduler task_scheduler;
 
+#define RELAY1 27
+#define RELAY2 14
+#define SWITCH1 32
+#define SWITCH2 33
+
 ChargeManager::ChargeManager()
 {
     charge_manager_config = Config::Object({
@@ -165,6 +170,13 @@ void ChargeManager::start_manager_task() {
 
 void ChargeManager::setup()
 {
+    pinMode(RELAY1, OUTPUT);
+    pinMode(RELAY2, OUTPUT);
+    pinMode(SWITCH1, INPUT);
+    pinMode(SWITCH2, INPUT);
+    digitalWrite(RELAY1, digitalRead(SWITCH1));
+    digitalWrite(RELAY2, digitalRead(SWITCH2));
+
     api.restorePersistentConfig("charge_manager/config", &charge_manager_config);
 
     charge_manager_config_in_use = charge_manager_config;
@@ -381,7 +393,29 @@ void ChargeManager::register_urls()
 
 }
 
+    static bool switch1 = false;
+    static bool switch2 = false;
+    static bool switch1_before;
+    static bool switch2_before;
+
 void ChargeManager::loop()
 {
+    switch1_before = switch1;
+    switch2_before = switch2;
+    switch1 = digitalRead(SWITCH1);
+    switch2 = digitalRead(SWITCH2);
 
+    if(switch1 != switch1_before) {
+        digitalWrite(RELAY1, switch1);
+        logger.printfln("Der Energieversorger %s das Laden von Elektroautos.", switch1 ? "verbietet" : "erlaubt");
+        if(switch1) {
+            charge_manager_available_current.get("current")->updateUint(0); // der Rundsteuerempfänger sagt NEIN
+        } else {
+            charge_manager_available_current.get("current")->updateUint(charge_manager_config_in_use.get("default_available_current")->asUint()); // restore the default
+        }
+    }
+    if(switch2 != switch2_before) {
+        digitalWrite(RELAY2, switch2);
+        logger.printfln("Schalteingang 2 ist jetzt %sgeschaltet.", switch2 ? "aus" : "ein");
+    }
 }

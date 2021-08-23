@@ -48,7 +48,7 @@ sonoff::sonoff()
     evse_config = Config::Object({
         {"auto_start_charging", Config::Bool(true)},
         {"managed", Config::Bool(true)},
-        {"max_current_configured", Config::Uint16(0)}
+        {"max_current_configured", Config::Uint16(std::numeric_limits<std::uint16_t>::max())}
     });
 
     evse_state = Config::Object({
@@ -96,7 +96,7 @@ sonoff::sonoff()
         {"max_current_configured", Config::Uint16(0)},
         {"max_current_incoming_cable", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
         {"max_current_outgoing_cable", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
-        {"max_current_managed", Config::Uint16(0)},
+        {"max_current_managed", Config::Uint16(std::numeric_limits<std::uint16_t>::max())},
     });
 
     evse_auto_start_charging = Config::Object({
@@ -107,7 +107,7 @@ sonoff::sonoff()
         {"auto_start_charging", Config::Bool(true)}
     });
     evse_current_limit = Config::Object({
-        {"current", Config::Uint(32000, 6000, 32000)}
+        {"current", Config::Uint(std::numeric_limits<std::uint16_t>::max(), 6000, std::numeric_limits<std::uint16_t>::max())}
     });
 
     evse_stop_charging = Config::Null();
@@ -153,7 +153,8 @@ sonoff::sonoff()
 
 int sonoff::bs_evse_start_charging(TF_EVSE *evse) {
     charging = true;
-    logger.printfln("EVSE start charging");
+    uint8_t allowed_charging_current = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
+    logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
     return 0;
 }
 
@@ -251,10 +252,6 @@ void sonoff::setup()
     task_scheduler.scheduleWithFixedDelay("update_evse_low_level_state", [this](){
         update_evse_low_level_state();
     }, 0, 1000);
-
-    task_scheduler.scheduleWithFixedDelay("update_evse_user_calibration", [this](){
-        update_evse_user_calibration();
-    }, 0, 10000);
 
 #ifdef MODULE_CM_NETWORKING_AVAILABLE
     cm_networking.register_client([this](uint16_t current){
@@ -358,7 +355,6 @@ String sonoff::get_evse_debug_line() {
 }
 
 void sonoff::set_managed_current(uint16_t current) {
-    //is_in_bootloader(tf_evse_set_managed_current(&evse, current));
     evse_managed_current.get("current")->updateUint(current);
     evse_max_charging_current.get("max_current_managed")->updateUint(current);
     this->last_current_update = millis();
@@ -402,9 +398,12 @@ void sonoff::register_urls()
 
     api.addState("evse/user_calibration", &evse_user_calibration, {}, 1000);
     api.addCommand("evse/user_calibration_update", &evse_user_calibration, {}, [this](){
-        int16_t resistance_880[14];
-        evse_user_calibration.get("resistance_880")->fillArray<int16_t, Config::ConfInt>(resistance_880, sizeof(resistance_880)/sizeof(resistance_880[0]));
-
+        this->set_managed_current(std::numeric_limits<std::uint16_t>::max());
+        evse_state.get("iec61851_state")->updateUint(2); // connected
+        evse_state.get("vehicle_state")->updateUint(2); // charging
+//        int16_t resistance_880[14];
+//        evse_user_calibration.get("resistance_880")->fillArray<int16_t, Config::ConfInt>(resistance_880, sizeof(resistance_880)/sizeof(resistance_880[0]));
+//
 //        tf_evse_set_user_calibration(&evse,
 //            0xCA11B4A0,
 //            evse_user_calibration.get("user_calibration_active")->asBool(),
@@ -436,29 +435,23 @@ void sonoff::register_urls()
 
 void sonoff::loop()
 {
-    static uint32_t last_check = 0;
-    static bool switch1_before;
-    static bool switch2_before;
-
-    if(evse_found && !initialized && deadline_elapsed(last_check + 10000)) {
-        last_check = millis();
-        setup_evse();
-    }
-
-    switch1_before = switch1;
-    switch2_before = switch2;
-    switch1 = digitalRead(SWITCH1);
-    switch2 = digitalRead(SWITCH2);
-
-    if(switch1 != switch1_before) {
-        digitalWrite(RELAY1, switch1);
-        logger.printfln("Der Energieversorger %s das Laden von Elektroautos.", switch1 ? "verbietet" : "erlaubt");
-	//TODO max out the current to cut off the others from charging
-    }
-    if(switch2 != switch2_before) {
-        digitalWrite(RELAY2, switch2);
-        logger.printfln("Schalteingang 2 ist jetzt %sgeschaltet.", switch2 ? "aus" : "ein");
-    }
+//    static bool switch1_before;
+//    static bool switch2_before;
+//
+//    switch1_before = switch1;
+//    switch2_before = switch2;
+//    switch1 = digitalRead(SWITCH1);
+//    switch2 = digitalRead(SWITCH2);
+//
+//    if(switch1 != switch1_before) {
+//        digitalWrite(RELAY1, switch1);
+//        logger.printfln("Der Energieversorger %s das Laden von Elektroautos.", switch1 ? "verbietet" : "erlaubt");
+//	//TODO max out the current to cut off the others from charging
+//    }
+//    if(switch2 != switch2_before) {
+//        digitalWrite(RELAY2, switch2);
+//        logger.printfln("Schalteingang 2 ist jetzt %sgeschaltet.", switch2 ? "aus" : "ein");
+//    }
 
 #ifdef MODULE_WS_AVAILABLE
     static uint32_t last_debug = 0;
@@ -573,34 +566,4 @@ void sonoff::update_evse_state() {
     evse_state.get("lock_state")->updateUint(lock_state);
     //evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
     evse_state.get("uptime")->updateUint(uptime);
-}
-
-
-void sonoff::update_evse_user_calibration() {
-    if(!initialized)
-        return;
-
-//    bool user_calibration_active;
-//    int16_t voltage_diff, voltage_mul, voltage_div, resistance_2700, resistance_880[14];
-//
-//    int rc = tf_evse_get_user_calibration(&evse,
-//        &user_calibration_active,
-//        &voltage_diff,
-//        &voltage_mul,
-//        &voltage_div,
-//        &resistance_2700,
-//        resistance_880);
-//
-//    evse_user_calibration.get("user_calibration_active")->updateBool(user_calibration_active);
-//    evse_user_calibration.get("voltage_diff")->updateInt(voltage_diff);
-//    evse_user_calibration.get("voltage_mul")->updateInt(voltage_mul);
-//    evse_user_calibration.get("voltage_div")->updateInt(voltage_div);
-//    evse_user_calibration.get("resistance_2700")->updateInt(resistance_2700);
-//
-//    for(int i = 0; i < sizeof(resistance_880)/sizeof(resistance_880[0]); ++i)
-//        evse_user_calibration.get("resistance_880")->get(i)->updateInt(resistance_880[i]);
-}
-
-bool sonoff::is_in_bootloader(int rc) {
-    return false;
 }
