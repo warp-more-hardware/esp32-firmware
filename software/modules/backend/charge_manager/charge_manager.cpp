@@ -272,6 +272,22 @@ void ChargeManager::distribute_current() {
     // Stage 1: Limit boxes already charging.
     uint16_t current_per_charger = chargers_requesting_current == 0 ? 0 : MIN(32000, MAX(6000, available_current / chargers_requesting_current));
 
+    //logger.printfln("current_per_charger %d, available_current %d.", current_per_charger, available_current);
+    int color = chargers_requesting_current == 0 ? 0x00ff00 : 0xffffff; // green (if not replaced, we are good) or innocent white ;-) (which should be replaced later on in any case)
+    switch (current_per_charger) {
+    case 0:
+        if (available_current == 0) { color = 0xff0000; } // red    kein Laden erlaubt
+        if (unreachable_evse_found) { color = 0xff00ff; } // pink   wallbox offline panic mode
+        break;
+    case 1 ... 15999:
+        color = 0x0000ff;                                 // blue    Ladestrom wird geteilt
+        break;
+    default:
+        color = 0x00ff00;                                 // green   Laden mit voller Leistung
+        break;
+    }
+    api.callCommand("statuslight/color", Config::ConfUpdateObject{{ {"color", color} }});
+
     local_log += snprintf(local_log, DISTRIBUTION_LOG_LEN - (local_log - distribution_log),
                           "            Current per charger: %u\r\n",
                           current_per_charger);

@@ -29,6 +29,8 @@
 #include "web_server.h"
 #include "modules.h"
 
+#include <ArduinoJson.h>
+
 extern EventLog logger;
 
 extern TaskScheduler task_scheduler;
@@ -154,12 +156,14 @@ sonoff::sonoff()
 int sonoff::bs_evse_start_charging(TF_EVSE *evse) {
     charging = true;
     logger.printfln("EVSE start charging");
+    digitalWrite(RELAY2, HIGH);
     return 0;
 }
 
 int sonoff::bs_evse_stop_charging(TF_EVSE *evse) {
     charging = false;
     logger.printfln("EVSE stop charging");
+    digitalWrite(RELAY2, LOW);
     return 0;
 }
 
@@ -243,6 +247,9 @@ void sonoff::setup()
             evse_config.get("managed")->asBool() ?"true":"false",
             evse_config.get("max_current_configured")->asUint());
     }
+
+    // switch on RELAY2 (supposed to be connected to the status light)
+    digitalWrite(RELAY2, HIGH);
 
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
         update_evse_state();
@@ -451,13 +458,15 @@ void sonoff::loop()
                 charge_manager_available_current = api.getState("charge_manager/available_current")->get("current")->asUint();
                 api.callCommand("charge_manager/available_current_update", Config::ConfUpdateObject{{ {"current", 0} }}); // der Rundsteuerempfänger sagt NEIN
                 api.blockCommand("charge_manager/available_current_update", "Rundsteuerempfänger blockiert!");
+                //api.callCommand("statuslight/color", Config::ConfUpdateObject{{ {"color", 0xff0000} }}); // red
             } else {
                 api.callCommand("charge_manager/available_current_update", Config::ConfUpdateObject{{ {"current", charge_manager_available_current} }}); // alles wieder gut, restore the saved value
                 api.blockCommand("charge_manager/available_current_update", "");
+                //api.callCommand("statuslight/color", Config::ConfUpdateObject{{ {"color", 0x00ff00} }}); // green
             }
         }
         if(switch2 != switch2_before) {
-            digitalWrite(RELAY2, switch2);
+            //digitalWrite(RELAY2, switch2);
             logger.printfln("Schalteingang 2 ist jetzt %sgeschaltet.", switch2 ? "aus" : "ein");
         }
     }
