@@ -939,7 +939,7 @@ void ENplus::loop()
                     evseStatus = PrivCommRxBuffer[77];
                     update_evseStatus(evseStatus);
                     logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s)", cmd, seq, evseStatus, evse_status_text[evseStatus]);
-                    logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%fV\t%fV\t%fV\t%fA\t%d\t%d\t%d\t",
+                    logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%.1fV\t%.1fV\t%.1fV\t%.1fA\t%.1fA\t%.1fA\t%d\t",
                               PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
                               PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87],
                               PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89],  // charged energy Wh
@@ -948,12 +948,12 @@ void ENplus::loop()
                               PrivCommRxBuffer[94]+256*PrivCommRxBuffer[95],
                               PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97],  // charging power
                               PrivCommRxBuffer[98]+256*PrivCommRxBuffer[99],
-                              float(PrivCommRxBuffer[100]+256*PrivCommRxBuffer[101]/10),  // L1 plug voltage * 10
-                              float(PrivCommRxBuffer[102]+256*PrivCommRxBuffer[103]/10),  // L2 plug voltage * 10 ?
-                              float(PrivCommRxBuffer[104]+256*PrivCommRxBuffer[105]/10),  // L3 plug voltage * 10 ?
-                              float(PrivCommRxBuffer[106]+256*PrivCommRxBuffer[107]/10),  // charging current * 10
-                              PrivCommRxBuffer[108]+256*PrivCommRxBuffer[109],
-                              PrivCommRxBuffer[110]+256*PrivCommRxBuffer[111],
+                              float(PrivCommRxBuffer[100]+256*PrivCommRxBuffer[101])/10,  // L1 plug voltage * 10
+                              float(PrivCommRxBuffer[102]+256*PrivCommRxBuffer[103])/10,  // L2 plug voltage * 10
+                              float(PrivCommRxBuffer[104]+256*PrivCommRxBuffer[105])/10,  // L3 plug voltage * 10
+                              float(PrivCommRxBuffer[106]+256*PrivCommRxBuffer[107])/10,  // L1 charging current * 10
+                              float(PrivCommRxBuffer[108]+256*PrivCommRxBuffer[109])/10,  // L2 charging current * 10
+                              float(PrivCommRxBuffer[110]+256*PrivCommRxBuffer[111])/10,  // L3 charging current * 10
                               PrivCommRxBuffer[113]+256*PrivCommRxBuffer[114]
                               );
                 } else {
