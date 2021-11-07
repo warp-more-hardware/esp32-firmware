@@ -71,9 +71,9 @@ void replyToServer(void *arg)
 
 void handleData(void *arg, AsyncClient *client, void *data, size_t len)
 {
-    char reply[len + 1];
-    memcpy(reply, data, len);
-    reply[len] = 0; // Null termination.
+    /* char reply[len + 1]; */
+    /* memcpy(reply, data, len); */
+    /* reply[len] = 0; // Null termination. */
 
     //logger.printfln("<%s: %s", client->remoteIP().toString().c_str(), reply);
 	//Serial.write((uint8_t *)data, len);
