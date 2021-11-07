@@ -23,6 +23,7 @@
 #include "bindings/bricklet_evse.h"
 
 #include "config.h"
+#include "web_server.h"
 
 class ENplus {
 public:
@@ -33,7 +34,9 @@ public:
 
     bool evse_found = false;
     bool initialized = false;
-    bool charging = false;
+
+    /* GD Firmware updater */
+    bool firmware_update_running = false;
 
 private:
     void setup_evse();
@@ -92,6 +95,14 @@ private:
     bool shutdown_logged = false;
 
     TF_EVSE evse;
+
+    /* GD Firmware updater */
+    bool handle_update_chunk(int command, WebServerRequest request, size_t chunk_index, uint8_t *data, size_t chunk_length, bool final, size_t complete_length);
+    uint32_t calculated_checksum = 0;
+    uint32_t checksum = 0;
+    uint32_t checksum_offset = 0;
+    bool update_aborted = false;
+
 };
 
 static const uint16_t crc16_modbus_table[] = {
@@ -142,3 +153,13 @@ static const char *evse_status_text[] = {
    "(Unavailable)",
    "Fault (charger in fault condition)",
 };
+
+static const char *cmd_0B_text[] = {
+    "Reset into application mode",
+    "Handshake",
+    "Flash erase",
+    "Flash write",
+    "Flash verify",
+    "Reset into boot mode",
+};
+
