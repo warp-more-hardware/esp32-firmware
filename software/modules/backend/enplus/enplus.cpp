@@ -41,6 +41,8 @@ extern WebServer server;
 extern API api;
 extern bool firmware_update_allowed;
 
+bool ready_for_next_chunk = false;
+
 // Charging profile:
 // 10A ESP> W (2021-06-06 11:05:10) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 1D 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 06 0B 05 0A 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 CE 75
 // 12A ESP> W (2021-06-03 18:37:19) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 19 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 03 12 25 14 00 00 00 00 0C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 BF 11
@@ -96,12 +98,38 @@ byte StopCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x7
 //privCommCmdAFSmartCurrCtl
 byte ChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-// Commands found in Autoaid protocol document, chapter 6.3:
 // Enter boot mode: Tx(cmd_AB len: 20): FA 03 00 00 AB 14 0A 00 00 00 00 00 00 00 05 00 00 00 62 B2
+// ESP> W (2021-10-04 10:04:35) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 05 00 00 00 60 33  ^M
 // Enter boot mode acknowledge: Rx(cmd_0B len: 16): FA 03 00 00 0B 14 06 00 00 00 05 00 00 00 F1 3A
+// erase flash
+// ESP> W (2021-10-04 10:04:39) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 17 0A 00 00 00 00 00 00 00 02 00 00 00 66 05  ^M
 byte EnterBootMode[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00};
 // Exit boot mode, enter application mode: Tx (cmd_AB len: 24): FA 03 00 00 AB 5A 0E 00 00 00 03 08 FC FF 00 00 02 00 4F 4B 00 00 E1 98
 byte EnterAppMode[] = {0xAB, 0x00, 0x00, 0x03, 0x08, 0xFC, 0xFF, 0x00, 0x00, 0x02, 0x00, 0x4F, 0x4B, 0x00, 0x00};
+//Handshake: //Tx (cmd_AB len:20): FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 01 00 00 00 61 03
+// ESP> W (2021-10-04 10:04:39) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 16 0A 00 00 00 00 00 00 00 01 00 00 00 64 C0  ^M
+byte Handshake[] =   {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00};
+//Flash verify:
+//byte FlashVerify[] = {0xAB, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x04, 0x00, 40, 0x00, /* 40 words */
+byte FlashVerify[810] = {0xAB, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x04, 0x00, 0x90, 0x01, /* 400 words */
+     /*  0x00  */     0x68, 0x16, 0x00, 0x20, 0x1d, 0x25, 0x00, 0x08, 0x3b, 0x0e, 0x00, 0x08, 0x3d, 0x0e, 0x00, 0x08, /* example data */
+     /*  0x10  */     0x41, 0x0e, 0x00, 0x08, 0x45, 0x0e, 0x00, 0x08, 0x49, 0x0e, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00,
+     /*  0x20  */     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4d, 0x0e, 0x00, 0x08,
+     /*  0x30  */     0x4f, 0x0e, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x51, 0x0e, 0x00, 0x08, 0x29, 0x0b, 0x00, 0x08,
+     /*  0x40  */     0x33, 0x25, 0x00, 0x08, 0x33, 0x25, 0x00, 0x08, 0x33, 0x25, 0x00, 0x08, 0x33, 0x25, 0x00, 0x08  /* filled with zeros automatically */ };
+
+/*
+
+37977                 000: FA 03 00 00 AB 5C 5A 00 00 00 00 00 00 00 04 00 28 00 68 16
+                      020: 00 20 1D 25 00 08 3B 0E 00 08 3D 0E 00 08 41 0E 00 08 45 0E
+                      040: 00 08 49 0E 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+                      060: 00 00 4D 0E 00 08 4F 0E 00 08 00 00 00 00 51 0E 00 08 29 0B
+                      080: 00 08 33 25 00 08 33 25 00 08 33 25 00 08 33 25 00 08 E8 14
+38006       Tx cmd_AB seq:5C, len:100, crc:14E8
+38073                 000: FA 03 00 00 0B 5C 06 00 00 00 04 00 01 00 A7 55
+38073       Rx cmd_0B seq:5C len:6 crc:55A7
+
+*/
 
 uint16_t crc16_modbus(uint8_t *buffer, uint32_t length) {
         //uint16_t crc = 0xFFFF;
@@ -668,6 +696,33 @@ void ENplus::register_urls()
         request.send(200);
     });
 #endif
+
+    server.on("/update_gd", HTTP_GET, [this](WebServerRequest request){
+        request.send(200, "text/html", "<form><input id=\"gd_firmware\"type=\"file\"> <button id=\"u_firmware\"type=\"button\"onclick='u(\"gd_firmware\")'>Upload gd_firmware</button> <label id=\"p_firmware\"></label></form><script>function u(e){var t,n,d,o=document.getElementById(e).files;0==o.length?alert(\"No file selected!\"):(document.getElementById(\"gd_firmware\").disabled=!0,document.getElementById(\"u_firmware\").disabled=!0,t=o[0],n=new XMLHttpRequest,d=document.getElementById(\"p_\"+e),n.onreadystatechange=function(){4==n.readyState&&(200==n.status?(document.open(),document.write(n.responseText),document.close()):(0==n.status?alert(\"Server closed the connection abruptly!\"):alert(n.status+\" Error!\\n\"+n.responseText),location.reload()))},n.upload.addEventListener(\"progress\",function(e){e.lengthComputable&&(d.innerHTML=e.loaded/e.total*100+\"% (\"+e.loaded+\" / \"+e.total+\")\")},!1),n.open(\"POST\",\"/flash_\"+e,!0),n.send(t))}</script>");
+    });
+
+    server.on("/flash_gd_firmware", HTTP_POST, [this](WebServerRequest request){
+        if (update_aborted)
+            return;
+
+        this->firmware_update_running = false;
+        if (!firmware_update_allowed) {
+            request.send(423, "text/plain", "vehicle connected");
+            return;
+        }
+
+        /* request.send(Update.hasError() ? 400: 200, "text/plain", Update.hasError() ? Update.errorString() : "Update OK"); */
+        request.send(200, "text/plain", "Update OK");
+    },[this](WebServerRequest request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+        if (!firmware_update_allowed) {
+            request.send(423, "text/plain", "vehicle connected");
+            this->firmware_update_running = false;
+            return false;
+        }
+        this->firmware_update_running = true;
+        return handle_update_chunk(0, request, index, data, len, final, request.contentLength());
+    });
+
 }
 
 void ENplus::loop()
@@ -1032,6 +1087,34 @@ void ENplus::loop()
                         break;
                 }//switch cmdAA answer processing
                 break;
+            case 0x0B:
+                if( PrivCommRxBuffer[12]==0 ) { // success
+                    switch( PrivCommRxBuffer[10] ) {
+                        case 5: // reset into boot mode
+                            logger.printfln("   reset into boot mode complete, handshake next");
+                            sendCommand(Handshake, sizeof(Handshake));
+                            break;
+                        case 1: // handshake
+                            logger.printfln("   handshake complete, verify next");
+                            ready_for_next_chunk = true;
+                            break;
+                        case 4: // verify
+                            logger.printfln("   verify fine");
+                            ready_for_next_chunk = true;
+                            break;
+                        default:
+                            logger.printfln("   cmd_%.2X seq:%.2X privCommCmdABUpdateReq: %.2X%.2X%.2X%.2X  %d (%s) - %s", cmd, seq, FlashVerify[3], FlashVerify[4], FlashVerify[5], FlashVerify[6], PrivCommRxBuffer[10], cmd_0B_text[PrivCommRxBuffer[10]], PrivCommRxBuffer[12]==0 ?"success":"failure");
+                            logger.printfln("   getting the GD chip back into app mode");
+                            sendCommand(EnterAppMode, sizeof(EnterAppMode));
+                            break;
+                    }//switch privCommCmdABUpdateReq success
+                } else {
+                    logger.printfln("   cmd_%.2X seq:%.2X privCommCmdABUpdateReq: %.2X%.2X%.2X%.2X  %d (%s) - %s", cmd, seq, FlashVerify[3], FlashVerify[4], FlashVerify[5], FlashVerify[6], PrivCommRxBuffer[10], cmd_0B_text[PrivCommRxBuffer[10]], PrivCommRxBuffer[12]==0 ?"success":"failure");
+                    logger.printfln("   getting the GD chip back into app mode");
+                    update_aborted = true;
+                    sendCommand(EnterAppMode, sizeof(EnterAppMode));
+                }
+                break;
             case 0x0E:
 // [2021-08-07 07:55:05] Tx(cmd_0E len:76) : FA 03 00 00 0E 11 42 00 00 00 00 00 00 00 00 00 00 0A 01 77 02 37 35 32 30 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 66 08 97 08 14 00 7A 01 01 00 00 00 00 00 00 00 00 00 00 DE 91
 // [2021-08-07 07:55:05] cmd0E_DutyData pwmMax:266
@@ -1340,3 +1423,74 @@ void ENplus::update_evse_user_calibration() {
 bool ENplus::is_in_bootloader(int rc) {
     return false;
 }
+
+
+/* GD Firmware updater */
+
+bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t chunk_index, uint8_t *data, size_t chunk_length, bool final, size_t complete_length) {
+
+    if(chunk_index == 0) {
+        logger.printfln("EVSE FlashVerify");
+ /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 05 00 00 00 60 33  ^M */
+ /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 01 06 00 00 00 05 00 00 00 03 AA  ^M */
+ /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 16 0A 00 00 00 00 00 00 00 01 00 00 00 64 C0  ^M */
+ /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 16 06 00 00 00 01 00 00 00 E9 6A  ^M */
+ /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 17 0A 00 00 00 00 00 00 00 02 00 00 00 66 05  ^M */
+ /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 17 06 00 00 00 02 00 00 00 E4 BE  ^M */
+ /* [PRIV_COMM, 1875]: Tx(cmd_AB len:820) :  FA 03 00 00 AB 18 2A 03 00 00 00 08 00 00 03 00 90 01 68 16 00 20 1D 25 00 08 3B 0E 00 08 3D 0E 00 08 41 0E 00 08 45 0E 00 08 49 0E 00 08 00 00 00 00 00 00 */
+        sendCommand(EnterBootMode, sizeof(EnterBootMode));
+        /* logger.printfln("Failed to start update: %s", Update.errorString()); */
+        /* request.send(400, "text/plain", Update.errorString()); */
+        /* update_aborted = true; */
+        /* return true; */
+    }
+
+    size_t chunk_offset = 0;
+    size_t length = chunk_length;
+
+    while (length > 0) {
+        //calculate maxlength
+        size_t maxlength = MIN(length, length % 800); // 800 bytes is the max flash verify/write size
+        maxlength = maxlength > 0 ? maxlength : 800;  // process the reminder first, then 800b chunks
+        FlashVerify[9]  = (maxlength/2 & 0x000000FF); // number of words to process (therefore divided by 2)
+        FlashVerify[10] = (maxlength/2 & 0x0000FF00) >> 8;
+
+        //calculate address
+        uint32_t gd_address = chunk_index + chunk_offset + 0x8000000; // 0x8000000 is the start address for the GD chip
+        FlashVerify[5] = (gd_address & 0x000000FF);
+        FlashVerify[6] = (gd_address & 0x0000FF00) >> 8;
+        FlashVerify[3] = (gd_address & 0x00FF0000) >> 16;
+        FlashVerify[4] = (gd_address & 0xFF000000) >> 24;
+
+        //logger.printfln("Processing update chunk with: chunk_index %.6X (%d), gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, complete_l %d, final: %s", chunk_index, chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, complete_length, final?"true":"false");
+        logger.printfln("c_index %d, gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, l %d, ml %d, ll %d, final: %s", chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, length, maxlength, complete_length, final?"true":"false");
+
+        // copy data
+        memcpy(FlashVerify+11, data + chunk_offset, maxlength);
+
+        if (update_aborted)
+            return true;
+
+        while (!ready_for_next_chunk) {
+            loop(); //TODO make this more elegant
+        }
+        sendCommand(FlashVerify, maxlength+11); // next chunk (11 bytes header) 
+        ready_for_next_chunk = false;
+
+        chunk_offset = chunk_offset + maxlength;
+        length = length - maxlength;
+    } // iterate through big chunks
+
+    if(final) {
+        this->firmware_update_running = false;
+        logger.printfln("   scheduling GD chip app mode in 3s");
+        // after last chunk, get out of flash mode
+        task_scheduler.scheduleOnce("factory_reset", [this](){
+            logger.printfln("   getting the GD chip back into app mode");
+            sendCommand(EnterAppMode, sizeof(EnterAppMode));
+        }, 3000);
+    }
+
+    return true;
+}
+
