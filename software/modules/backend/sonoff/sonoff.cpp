@@ -34,7 +34,7 @@
 extern EventLog logger;
 
 extern TaskScheduler task_scheduler;
-extern TF_HalContext hal;
+/* extern TF_HalContext hal; */
 extern WebServer server;
 
 extern API api;
@@ -251,6 +251,10 @@ void sonoff::setup()
     // switch on RELAY2 (supposed to be connected to the status light)
     digitalWrite(RELAY2, HIGH);
 
+    /* task_scheduler.scheduleWithFixedDelay("esp32_temp", [this](){ */
+	    /* logger.printfln("Temp: %d", (temperatureRead() - 32) / 1.8); */
+    /* }, 0, 5000); */
+
     task_scheduler.scheduleWithFixedDelay("update_evse_state", [this](){
         update_evse_state();
     }, 0, 1000);
@@ -298,21 +302,21 @@ String sonoff::get_evse_debug_line() {
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
-    int rc = bs_evse_get_state(&evse,
-        &iec61851_state,
-        &vehicle_state,
-        &contactor_state,
-        &contactor_error,
-        &charge_release,
-        &allowed_charging_current,
-        &error_state,
-        &lock_state,
-        &time_since_state_change,
-        &uptime);
+    /* int rc = bs_evse_get_state(&evse, */
+    /*     &iec61851_state, */
+    /*     &vehicle_state, */
+    /*     &contactor_state, */
+    /*     &contactor_error, */
+    /*     &charge_release, */
+    /*     &allowed_charging_current, */
+    /*     &error_state, */
+    /*     &lock_state, */
+    /*     &time_since_state_change, */
+    /*     &uptime); */
 
-    if(rc != TF_E_OK) {
-        return String("evse_get_state failed: rc: ") + String(rc);
-    }
+    /* if(rc != TF_E_OK) { */
+    /*     return String("evse_get_state failed: rc: ") + String(rc); */
+    /* } */
 
     bool low_level_mode_enabled;
     uint8_t led_state;
@@ -332,9 +336,9 @@ String sonoff::get_evse_debug_line() {
 //        resistances,
 //        gpio);
 
-    if(rc != TF_E_OK) {
-        return String("evse_get_low_level_state failed: rc: ") + String(rc);
-    }
+    /* if(rc != TF_E_OK) { */
+    /*     return String("evse_get_low_level_state failed: rc: ") + String(rc); */
+    /* } */
 
     char line[150] = {0};
     snprintf(line, sizeof(line)/sizeof(line[0]), "%lu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%c,%u,%u,%u,%u,%d,%d,%d,%u,%u,%c,%c,%c,%c,%c\n",
@@ -486,8 +490,8 @@ void sonoff::setup_evse()
     pinMode(RELAY2, OUTPUT);
     pinMode(SWITCH1, INPUT);
     pinMode(SWITCH2, INPUT);
-    digitalWrite(RELAY1, digitalRead(SWITCH1));
-    digitalWrite(RELAY2, digitalRead(SWITCH2));
+    /* digitalWrite(RELAY1, digitalRead(SWITCH1)); */
+    /* digitalWrite(RELAY2, digitalRead(SWITCH2)); */
 
     evse_found = true;
     initialized = true;
@@ -497,14 +501,14 @@ void sonoff::update_evse_low_level_state() {
     if(!initialized)
         return;
 
-    bool low_level_mode_enabled;
-    uint8_t led_state;
-    uint16_t cp_pwm_duty_cycle;
+    /* bool low_level_mode_enabled; */
+    /* uint8_t led_state; */
+    /* uint16_t cp_pwm_duty_cycle; */
 
-    uint16_t adc_values[2];
-    int16_t voltages[3];
-    uint32_t resistances[2];
-    bool gpio[5];
+    /* uint16_t adc_values[2]; */
+    /* int16_t voltages[3]; */
+    /* uint32_t resistances[2]; */
+    /* bool gpio[5]; */
 
 //    int rc = tf_evse_get_low_level_state(&evse,
 //        &low_level_mode_enabled,
@@ -515,37 +519,37 @@ void sonoff::update_evse_low_level_state() {
 //        resistances,
 //        gpio);
 
-        low_level_mode_enabled = true;
-        led_state = 1;
-        cp_pwm_duty_cycle = 100;
-        adc_values[0] = 200;
-        adc_values[1] = 201;
-        voltages[0] = 300;
-        voltages[1] = 301;
-        voltages[2] = 302;
-        resistances[0] = 400;
-        resistances[1] = 401;
-        gpio[0] = false;
-        gpio[1] = false;
-        gpio[2] = false;
-        gpio[3] = false;
-        gpio[4] = false;
+        /* low_level_mode_enabled = true; */
+        /* led_state = 1; */
+        /* cp_pwm_duty_cycle = 100; */
+        /* adc_values[0] = 200; */
+        /* adc_values[1] = 201; */
+        /* voltages[0] = 300; */
+        /* voltages[1] = 301; */
+        /* voltages[2] = 302; */
+        /* resistances[0] = 400; */
+        /* resistances[1] = 401; */
+        /* gpio[0] = false; */
+        /* gpio[1] = false; */
+        /* gpio[2] = false; */
+        /* gpio[3] = false; */
+        /* gpio[4] = false; */
 
-    evse_low_level_state.get("low_level_mode_enabled")->updateBool(low_level_mode_enabled);
-    evse_low_level_state.get("led_state")->updateUint(led_state);
-    evse_low_level_state.get("cp_pwm_duty_cycle")->updateUint(cp_pwm_duty_cycle);
+    /* evse_low_level_state.get("low_level_mode_enabled")->updateBool(low_level_mode_enabled); */
+    /* evse_low_level_state.get("led_state")->updateUint(led_state); */
+    /* evse_low_level_state.get("cp_pwm_duty_cycle")->updateUint(cp_pwm_duty_cycle); */
 
-    for(int i = 0; i < sizeof(adc_values)/sizeof(adc_values[0]); ++i)
-        evse_low_level_state.get("adc_values")->get(i)->updateUint(adc_values[i]);
+    /* for(int i = 0; i < sizeof(adc_values)/sizeof(adc_values[0]); ++i) */
+        /* evse_low_level_state.get("adc_values")->get(i)->updateUint(adc_values[i]); */
 
-    for(int i = 0; i < sizeof(voltages)/sizeof(voltages[0]); ++i)
-        evse_low_level_state.get("voltages")->get(i)->updateInt(voltages[i]);
+    /* for(int i = 0; i < sizeof(voltages)/sizeof(voltages[0]); ++i) */
+        /* evse_low_level_state.get("voltages")->get(i)->updateInt(voltages[i]); */
 
-    for(int i = 0; i < sizeof(resistances)/sizeof(resistances[0]); ++i)
-        evse_low_level_state.get("resistances")->get(i)->updateUint(resistances[i]);
+    /* for(int i = 0; i < sizeof(resistances)/sizeof(resistances[0]); ++i) */
+        /* evse_low_level_state.get("resistances")->get(i)->updateUint(resistances[i]); */
 
-    for(int i = 0; i < sizeof(gpio)/sizeof(gpio[0]); ++i)
-        evse_low_level_state.get("gpio")->get(i)->updateBool(gpio[i]);
+    /* for(int i = 0; i < sizeof(gpio)/sizeof(gpio[0]); ++i) */
+        /* evse_low_level_state.get("gpio")->get(i)->updateBool(gpio[i]); */
 }
 
 void sonoff::update_evse_state() {
@@ -556,31 +560,31 @@ void sonoff::update_evse_state() {
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
-    int rc = bs_evse_get_state(&evse,
-        &iec61851_state,
-        &vehicle_state,
-        &contactor_state,
-        &contactor_error,
-        &charge_release,
-        &allowed_charging_current,
-        &error_state,
-        &lock_state,
-        &time_since_state_change,
-        &uptime);
+    /* int rc = bs_evse_get_state(&evse, */
+    /*     &iec61851_state, */
+    /*     &vehicle_state, */
+    /*     &contactor_state, */
+    /*     &contactor_error, */
+    /*     &charge_release, */
+    /*     &allowed_charging_current, */
+    /*     &error_state, */
+    /*     &lock_state, */
+    /*     &time_since_state_change, */
+    /*     &uptime); */
 
-    firmware_update_allowed = true;
+    /* firmware_update_allowed = true; */
 
-    evse_state.get("iec61851_state")->updateUint(iec61851_state);
-    evse_state.get("vehicle_state")->updateUint(vehicle_state);
-    evse_state.get("contactor_state")->updateUint(contactor_state);
-    bool contactor_error_changed = evse_state.get("contactor_error")->updateUint(contactor_error);
-    evse_state.get("charge_release")->updateUint(charge_release);
+    /* evse_state.get("iec61851_state")->updateUint(iec61851_state); */
+    /* evse_state.get("vehicle_state")->updateUint(vehicle_state); */
+    /* evse_state.get("contactor_state")->updateUint(contactor_state); */
+    /* bool contactor_error_changed = evse_state.get("contactor_error")->updateUint(contactor_error); */
+    /* evse_state.get("charge_release")->updateUint(charge_release); */
     if(last_allowed_charging_current != allowed_charging_current) {
         evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
         logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
     }
-    bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
-    evse_state.get("lock_state")->updateUint(lock_state);
+    /* bool error_state_changed = evse_state.get("error_state")->updateUint(error_state); */
+    /* evse_state.get("lock_state")->updateUint(lock_state); */
     //evse_state.get("time_since_state_change")->updateUint(time_since_state_change);
-    evse_state.get("uptime")->updateUint(uptime);
+    evse_state.get("uptime")->updateUint(millis());
 }
