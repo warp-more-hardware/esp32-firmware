@@ -831,9 +831,16 @@ void ENplus::loop()
             case 0x03:
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1919]: Rx(cmd_03 len:24) :  FA 03 00 00 03 27 0E 00 00 09 09 0D 00 00 02 00 00 00 00 00 04 00 80 BC
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 27 07 00 00 E2 01 01 00 08 34 CF 2F
+// 00 00 02 02 00 00 00 00 00 00 00 00 00
+/* 853540                000: FA 03 00 00 03 0C 0E 00 50 02 02 05 00 00 00 00 00 00 00 00 */
+/* 853540      Rx cmd_03 seq:0C len:14 crc:3DE8 */
                 evseStatus = PrivCommRxBuffer[9];
-                update_evseStatus(evseStatus);
-                logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
+                if( PrivCommRxBuffer[8]==0x50 ) { // TODO this 0x50 is a wild guess, I've seen it work, and I'm sure there is more than just the evseStatus byte needed for a well founded decission
+                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
+                    update_evseStatus(evseStatus);
+                } else {
+                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) but substatus (%.2X) not 0x50.", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[8]);
+                }
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
                 break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
