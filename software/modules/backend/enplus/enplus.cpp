@@ -128,6 +128,9 @@ uint16_t crc16_modbus(uint8_t *buffer, uint32_t length) {
 #define PayloadStart        8
 
 String ENplus::get_hex_privcomm_line(byte *data) {
+    #define LOG_LEN 4048 //TODO work without such a big buffer by writing line by line
+    char log[LOG_LEN] = {0};
+    char *local_log = log;
     uint16_t len = (uint16_t)(data[7] << 8 | data[6]) + 10; // payload length + 10 bytes header and crc
     if (len > 1000) { // mqtt buffer is the limiting factor
         logger.printfln("ERROR: buffer (%d bytes) too big for mqtt buffer (max 1000).", len);
@@ -135,16 +138,19 @@ String ENplus::get_hex_privcomm_line(byte *data) {
     }
 
     int offset = 0;
-    for(uint32_t i = 0; i < len; i++) {
+    for(uint16_t i = 0; i < len; i++) {
         #define BUFFER_CHUNKS 20
-        if(i > 0 && i % BUFFER_CHUNKS == 0) {
-            logger.printfln("privcomm: %s", PrivCommHexBuffer + offset);
-            offset = offset + 3*BUFFER_CHUNKS;
+        if(i % BUFFER_CHUNKS == 0) {
+            if(i>0) { local_log += snprintf(local_log, LOG_LEN - (local_log - log), "\r\n"); }
+            if(i>=BUFFER_CHUNKS) { local_log += snprintf(local_log, LOG_LEN - (local_log - log), "            "); }
+            local_log += snprintf(local_log, LOG_LEN - (local_log - log), "          %.3d: ", offset);
+            offset = offset + BUFFER_CHUNKS;
         }
-        snprintf(PrivCommHexBuffer + 3*i, sizeof(PrivCommHexBuffer)/sizeof(PrivCommHexBuffer[0]), "%.2X ", data[i]);
+        local_log += snprintf(local_log, LOG_LEN - (local_log - log), "%.2X ", data[i]);
     }
-    logger.printfln("privcomm: %s", PrivCommHexBuffer + offset);
-    return String(PrivCommHexBuffer);
+    local_log += snprintf(local_log, LOG_LEN - (local_log - log), "\r\n");
+    logger.write(log, local_log - log);
+    return String(log);
 }
 
 void ENplus::Serial2write(byte *data, int size) {
@@ -174,9 +180,7 @@ void ENplus::sendCommand(byte *data, int datasize) {
     PrivCommTxBuffer[5]++; // increment sequence number
     PrivCommTxBuffer[6] = (datasize-1) & 0xFF;
     PrivCommTxBuffer[7] = (datasize-1) >> 8;
-    for (int i=1; i<=datasize; i++) {
-        PrivCommTxBuffer[i+7] = data[i];
-    }
+    memcpy(PrivCommTxBuffer+8, data+1, datasize-1);
 
     uint16_t crc = crc16_modbus(PrivCommTxBuffer, datasize + 7);
 
@@ -188,8 +192,6 @@ void ENplus::sendCommand(byte *data, int datasize) {
 
     Serial2write(data, datasize + 9);
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
-
-    PrivCommTxBuffer[5]++; // increment sequence number
 }
 
 void ENplus::PrivCommSend(byte cmd, uint16_t datasize, byte *data) {
@@ -369,7 +371,6 @@ ENplus::ENplus()
 }
 
 int ENplus::bs_evse_start_charging(TF_EVSE *evse) {
-    charging = true;
     uint8_t allowed_charging_current = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
     logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
 
@@ -388,7 +389,6 @@ int ENplus::bs_evse_start_charging(TF_EVSE *evse) {
 }
 
 int ENplus::bs_evse_stop_charging(TF_EVSE *evse) {
-    charging = false;
     logger.printfln("EVSE stop charging");
     sendCommand(StopCharging, sizeof(StopCharging));
     return 0;
@@ -649,18 +649,7 @@ void ENplus::register_urls()
 
     api.addState("evse/user_calibration", &evse_user_calibration, {}, 1000);
     api.addCommand("evse/user_calibration_update", &evse_user_calibration, {}, [this](){
-        int16_t resistance_880[14];
-        evse_user_calibration.get("resistance_880")->fillArray<int16_t, Config::ConfInt>(resistance_880, sizeof(resistance_880)/sizeof(resistance_880[0]));
 
-//        tf_evse_set_user_calibration(&evse,
-//            0xCA11B4A0,
-//            evse_user_calibration.get("user_calibration_active")->asBool(),
-//            evse_user_calibration.get("voltage_diff")->asInt(),
-//            evse_user_calibration.get("voltage_mul")->asInt(),
-//            evse_user_calibration.get("voltage_div")->asInt(),
-//            evse_user_calibration.get("resistance_2700")->asInt(),
-//            resistance_880
-//            );
     }, true);
 
 #ifdef MODULE_WS_AVAILABLE
