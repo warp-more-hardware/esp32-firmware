@@ -42,6 +42,9 @@ extern API api;
 extern bool firmware_update_allowed;
 
 bool ready_for_next_chunk = false;
+size_t MAXLENGTH;
+byte flash_seq;
+uint32_t last_flash = 0;
 
 // Charging profile:
 // 10A ESP> W (2021-06-06 11:05:10) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 1D 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 06 0B 05 0A 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 CE 75
@@ -91,19 +94,24 @@ byte Init15[] = {0xAA, 0x18, 0x09, 0x01, 0x00, 0x00};
 //W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 40 05 00 14 09 01 00 00 11 30
 //I (2021-04-11 18:36:27) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 3150080
 
-//privCommCmdA7StartTransAck
-byte StartCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-byte StopCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00};
+//privCommCmdA7StartTransAck GD Firmware before 1.1.212?
+byte OldStartCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte StartCharging[] = {0xA6, 0x31, 0x39, 0x38, 0x30, 0x30, 0x30, 0x32, 0x30, 0x34, 0x39, 0x30, 0x5F, 0x41, 0x50, 0x50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
+byte OldStopCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
+byte StopCharging[]  = {0xA6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x37, 0x38, 0x35, 0x34, 0x31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0, 0, 0, 0, 0, 0, 0, 0};
 
 //privCommCmdAFSmartCurrCtl
-byte ChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte OldChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//privCommCmdADSmartchargeCtl
+byte ChargingSettings[] = {0xAD, 0x01, 0x91, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0, 0, 0, 0, 0x79, 0x08, 0x16, 0x10, 0x04, 0x10, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x06, 0, 0, 0, 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // Enter boot mode: Tx(cmd_AB len: 20): FA 03 00 00 AB 14 0A 00 00 00 00 00 00 00 05 00 00 00 62 B2
 // ESP> W (2021-10-04 10:04:35) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 05 00 00 00 60 33  ^M
 // Enter boot mode acknowledge: Rx(cmd_0B len: 16): FA 03 00 00 0B 14 06 00 00 00 05 00 00 00 F1 3A
 // erase flash
 // ESP> W (2021-10-04 10:04:39) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 17 0A 00 00 00 00 00 00 00 02 00 00 00 66 05  ^M
-byte EnterBootMode[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00};
+//byte EnterBootMode[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00};
+byte RemoteUpdate[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00}; // #7 is the operation command [0-5]
 // Exit boot mode, enter application mode: Tx (cmd_AB len: 24): FA 03 00 00 AB 5A 0E 00 00 00 03 08 FC FF 00 00 02 00 4F 4B 00 00 E1 98
 byte EnterAppMode[] = {0xAB, 0x00, 0x00, 0x03, 0x08, 0xFC, 0xFF, 0x00, 0x00, 0x02, 0x00, 0x4F, 0x4B, 0x00, 0x00};
 //Handshake: //Tx (cmd_AB len:20): FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 01 00 00 00 61 03
@@ -248,6 +256,7 @@ void ENplus::PrivCommAck(byte cmd, byte *data) {
     // the first 4 bytes never change and should be set already
     data[4] = cmd ^ 0xA0;  // complement command for ack
     data[6] = 1; //len
+    //data[5]=seq; //should already be copied from RxBuffer
     data[7] = 0; //len
     data[8] = 0; //payload
     uint16_t crc = crc16_modbus(data, 9);
@@ -312,6 +321,7 @@ ENplus::ENplus()
         {"SerialNumber", Config::Str("",20)},
         {"evse_found", Config::Bool(false)},
         {"initialized", Config::Bool(false)},
+        {"OldFirmware", Config::Bool(false)},
         {"jumper_configuration", Config::Uint8(3)}, // 3 = 16 Ampere = 11KW for the EN+ wallbox
         {"has_lock_switch", Config::Bool(false)}    // no key lock switch
     });
@@ -398,25 +408,37 @@ ENplus::ENplus()
     });
 }
 
-int ENplus::bs_evse_start_charging(TF_EVSE *evse) {
+int ENplus::bs_evse_start_charging() {
     uint8_t allowed_charging_current = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
     logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
 
     time_t t=now();     // get current time
-    ChargingSettings[2] = year(t) -2000;
-    ChargingSettings[3] = month(t);
-    ChargingSettings[4] = day(t);
-    ChargingSettings[5] = hour(t);
-    ChargingSettings[6] = minute(t);
-    ChargingSettings[7] = second(t);
-    ChargingSettings[17] = allowed_charging_current;
-    sendCommand(ChargingSettings, sizeof(ChargingSettings));
-
-    sendCommand(StartCharging, sizeof(StartCharging));
+    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+        OldChargingSettings[2] = year(t) -2000;
+        OldChargingSettings[3] = month(t);
+        OldChargingSettings[4] = day(t);
+        OldChargingSettings[5] = hour(t);
+        OldChargingSettings[6] = minute(t);
+        OldChargingSettings[7] = second(t);
+        OldChargingSettings[17] = allowed_charging_current;
+        sendCommand(OldChargingSettings, sizeof(OldChargingSettings));
+        sendCommand(OldStartCharging, sizeof(OldStartCharging));
+    } else {
+        //ChargingSettings[56] = year(t) -2000;
+        ChargingSettings[57] = month(t);
+        ChargingSettings[58] = day(t);
+        ChargingSettings[59] = hour(t);
+        ChargingSettings[60] = minute(t);
+        ChargingSettings[61] = second(t);
+        ChargingSettings[70] = allowed_charging_current;
+        //    ChargingSettings[74] = 1;      // Phases
+        sendCommand(ChargingSettings, sizeof(ChargingSettings));
+        sendCommand(StartCharging, sizeof(StartCharging));
+    }
     return 0;
 }
 
-int ENplus::bs_evse_stop_charging(TF_EVSE *evse) {
+int ENplus::bs_evse_stop_charging() {
     logger.printfln("EVSE stop charging");
     sendCommand(StopCharging, sizeof(StopCharging));
     return 0;
@@ -440,14 +462,14 @@ int ENplus::bs_evse_persist_config() {
     }
 }
 
-int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
+int ENplus::bs_evse_set_charging_autostart(bool autostart) {
     logger.printfln("EVSE set auto start charging to %s", autostart ? "true" :"false");
     evse_auto_start_charging.get("auto_start_charging")->updateBool(autostart);
     bs_evse_persist_config();
     return 0;
 }
 
-int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
+int ENplus::bs_evse_set_max_charging_current(uint16_t max_current) {
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
     bs_evse_persist_config();
     update_evse_state();
@@ -456,19 +478,30 @@ int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current
     logger.printfln("EVSE calculated allowed charging limit is %d Ampere", allowed_charging_current);
 
     time_t t=now();     // get current time
-    ChargingSettings[2] = year(t) -2000;
-    ChargingSettings[3] = month(t);
-    ChargingSettings[4] = day(t);
-    ChargingSettings[5] = hour(t);
-    ChargingSettings[6] = minute(t);
-    ChargingSettings[7] = second(t);
-    ChargingSettings[17] = allowed_charging_current;
-    sendCommand(ChargingSettings, sizeof(ChargingSettings));
-
+    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+        OldChargingSettings[2] = year(t) -2000;
+        OldChargingSettings[3] = month(t);
+        OldChargingSettings[4] = day(t);
+        OldChargingSettings[5] = hour(t);
+        OldChargingSettings[6] = minute(t);
+        OldChargingSettings[7] = second(t);
+        OldChargingSettings[17] = allowed_charging_current;
+        sendCommand(OldChargingSettings, sizeof(OldChargingSettings));
+    } else {
+        //ChargingSettings[56] = year(t) -2000;
+        ChargingSettings[57] = month(t);
+        ChargingSettings[58] = day(t);
+        ChargingSettings[59] = hour(t);
+        ChargingSettings[60] = minute(t);
+        ChargingSettings[61] = second(t);
+        ChargingSettings[70] = allowed_charging_current;
+        //    ChargingSettings[74] = 1;      // Phases
+        sendCommand(ChargingSettings, sizeof(ChargingSettings));
+    }
     return 0;
 }
 
-int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
+int ENplus::bs_evse_get_state(uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
 //    bool response_expected = true;
 //    tf_tfp_prepare_send(evse->tfp, TF_EVSE_FUNCTION_GET_STATE, 0, 17, response_expected);
     uint32_t allowed_charging_current;
@@ -570,7 +603,7 @@ String ENplus::get_evse_debug_line() {
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
-    int rc = bs_evse_get_state(&evse,
+    int rc = bs_evse_get_state(
         &iec61851_state,
         &vehicle_state,
         &contactor_state,
@@ -595,7 +628,7 @@ String ENplus::get_evse_debug_line() {
     uint32_t resistances[2];
     bool gpio[5];
 
-//    rc = tf_evse_get_low_level_state(&evse,
+//    rc = tf_evse_get_low_level_state(
 //        &low_level_mode_enabled,
 //        &led_state,
 //        &cp_pwm_duty_cycle,
@@ -633,7 +666,7 @@ String ENplus::get_evse_debug_line() {
 }
 
 void ENplus::set_managed_current(uint16_t current) {
-    //is_in_bootloader(tf_evse_set_managed_current(&evse, current));
+    //is_in_bootloader(tf_evse_set_managed_current(current));
     evse_managed_current.get("current")->updateUint(current);
     evse_max_charging_current.get("max_current_managed")->updateUint(current);
     this->last_current_update = millis();
@@ -655,15 +688,15 @@ void ENplus::register_urls()
     api.addState("evse/privcomm", &evse_privcomm, {}, 1000);
 
     api.addCommand("evse/auto_start_charging_update", &evse_auto_start_charging_update, {}, [this](){
-        bs_evse_set_charging_autostart(&evse, evse_auto_start_charging_update.get("auto_start_charging")->asBool());
+        bs_evse_set_charging_autostart(evse_auto_start_charging_update.get("auto_start_charging")->asBool());
     }, false);
 
     api.addCommand("evse/current_limit", &evse_current_limit, {}, [this](){
-        bs_evse_set_max_charging_current(&evse, evse_current_limit.get("current")->asUint());
+        bs_evse_set_max_charging_current(evse_current_limit.get("current")->asUint());
     }, false);
 
-    api.addCommand("evse/stop_charging", &evse_stop_charging, {}, [this](){bs_evse_stop_charging(&evse);}, true);
-    api.addCommand("evse/start_charging", &evse_start_charging, {}, [this](){bs_evse_start_charging(&evse);}, true);
+    api.addCommand("evse/stop_charging", &evse_stop_charging, {}, [this](){bs_evse_stop_charging();}, true);
+    api.addCommand("evse/start_charging", &evse_start_charging, {}, [this](){bs_evse_start_charging();}, true);
 
     api.addCommand("evse/managed_current_update", &evse_managed_current, {}, [this](){
         this->set_managed_current(evse_managed_current.get("current")->asUint());
@@ -680,25 +713,8 @@ void ENplus::register_urls()
 
     }, true);
 
-#ifdef MODULE_WS_AVAILABLE
-    server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
-        task_scheduler.scheduleOnce("enable evse debug", [this](){
-            ws.pushStateUpdate(this->get_evse_debug_header(), "evse/debug_header");
-            debug = true;
-        }, 0);
-        request.send(200);
-    });
-
-    server.on("/evse/stop_debug", HTTP_GET, [this](WebServerRequest request){
-        task_scheduler.scheduleOnce("enable evse debug", [this](){
-            debug = false;
-        }, 0);
-        request.send(200);
-    });
-#endif
-
     server.on("/update_gd", HTTP_GET, [this](WebServerRequest request){
-        request.send(200, "text/html", "<form><input id=\"gd_firmware\"type=\"file\"> <button id=\"u_firmware\"type=\"button\"onclick='u(\"gd_firmware\")'>Upload gd_firmware</button> <label id=\"p_firmware\"></label></form><script>function u(e){var t,n,d,o=document.getElementById(e).files;0==o.length?alert(\"No file selected!\"):(document.getElementById(\"gd_firmware\").disabled=!0,document.getElementById(\"u_firmware\").disabled=!0,t=o[0],n=new XMLHttpRequest,d=document.getElementById(\"p_\"+e),n.onreadystatechange=function(){4==n.readyState&&(200==n.status?(document.open(),document.write(n.responseText),document.close()):(0==n.status?alert(\"Server closed the connection abruptly!\"):alert(n.status+\" Error!\\n\"+n.responseText),location.reload()))},n.upload.addEventListener(\"progress\",function(e){e.lengthComputable&&(d.innerHTML=e.loaded/e.total*100+\"% (\"+e.loaded+\" / \"+e.total+\")\")},!1),n.open(\"POST\",\"/flash_\"+e,!0),n.send(t))}</script>");
+        request.send(200, "text/html", "<form><input id=\"gd_firmware\"type=\"file\"> <button id=\"u_firmware\"type=\"button\"onclick='u(\"gd_firmware\")'>Upload GD Firmware</button> <label id=\"p_firmware\"></label></form><form><input id=\"verify\"type=\"file\"> <button id=\"u_verify\"type=\"button\"onclick='u(\"verify\")'>Verify GD Firmware</button> <label id=\"p_verify\"></label></form><script>function u(e){var t,n,d,o=document.getElementById(e).files;0==o.length?alert(\"No file selected!\"):(document.getElementById(\"gd_firmware\").disabled=!0,document.getElementById(\"u_firmware\").disabled=!0,document.getElementById(\"verify\").disabled=!0,document.getElementById(\"u_verify\").disabled=!0,t=o[0],n=new XMLHttpRequest,d=document.getElementById(\"p_\"+e),n.onreadystatechange=function(){4==n.readyState&&(200==n.status?(document.open(),document.write(n.responseText),document.close()):(0==n.status?alert(\"Server closed the connection abruptly!\"):alert(n.status+\" Error!\\n\"+n.responseText),location.reload()))},n.upload.addEventListener(\"progress\",function(e){e.lengthComputable&&(d.innerHTML=e.loaded/e.total*100+\"% (\"+e.loaded+\" / \"+e.total+\")\")},!1),n.open(\"POST\",\"/flash_\"+e,!0),n.send(t))}</script>");
     });
 
     server.on("/flash_gd_firmware", HTTP_POST, [this](WebServerRequest request){
@@ -720,9 +736,31 @@ void ENplus::register_urls()
             return false;
         }
         this->firmware_update_running = true;
-        return handle_update_chunk(0, request, index, data, len, final, request.contentLength());
+        return handle_update_chunk(3, request, index, data, len, final, request.contentLength());
     });
 
+    server.on("/flash_verify", HTTP_POST, [this](WebServerRequest request){
+        request.send(200, "text/plain", "Update OK");
+    },[this](WebServerRequest request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+        return handle_update_chunk(4, request, index, data, len, final, request.contentLength());
+    });
+
+#ifdef MODULE_WS_AVAILABLE
+    server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
+        task_scheduler.scheduleOnce("enable evse debug", [this](){
+            ws.pushStateUpdate(this->get_evse_debug_header(), "evse/debug_header");
+            debug = true;
+        }, 0);
+        request.send(200);
+    });
+
+    server.on("/evse/stop_debug", HTTP_GET, [this](WebServerRequest request){
+        task_scheduler.scheduleOnce("enable evse debug", [this](){
+            debug = false;
+        }, 0);
+        request.send(200);
+    });
+#endif
 }
 
 void ENplus::loop()
@@ -872,12 +910,18 @@ void ENplus::loop()
                 if(!evse_hardware_configuration.get("initialized")->asBool()) {
                     initialized =
                         evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
-                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258
-                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 258;    // higest known working version (we assume earlier versions work as well)
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258, 1.1.525, 1.1.538
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 538;    // higest known working version (we assume earlier versions work as well)
                     evse_hardware_configuration.get("initialized")->updateBool(initialized);
+                    evse_hardware_configuration.get("OldFirmware")->updateBool(
+                        evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && 
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() < 538   //TODO 1.1.258, 1.1.525, 1.1.538 lowest known working version (we assume later versions work as well)
+                    );
+                    register_urls(); //TODO 
                     if(initialized) {
                          logger.printfln("EN+ GD EVSE initialized.");
-                         register_urls();
+                         //register_urls();
                     } else {
                          logger.printfln("EN+ GD EVSE Firmware Version or Hardware is not supported.");
                     }
@@ -889,13 +933,18 @@ void ENplus::loop()
 // 00 00 02 02 00 00 00 00 00 00 00 00 00
 /* 853540                000: FA 03 00 00 03 0C 0E 00 50 02 02 05 00 00 00 00 00 00 00 00 */
 /* 853540      Rx cmd_03 seq:0C len:14 crc:3DE8 */
+/* (2021-10-04 10:04:39) [PRIV_COMM, 2033]: Rx(cmd_03 len:24) :  FA 03 00 00 03 03 0E 00 00 02 02 00 00 00 00 00 00 00 00 00 00 00 9C 52 */
+/* (2021-10-04 10:04:40) [PRIV_COMM, 1875]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 03 07 00 10 15 0A 04 0A 04 27 4A D4 */
                 evseStatus = PrivCommRxBuffer[9];
                 if( PrivCommRxBuffer[8]==0x50 ) { // TODO this 0x50 is a wild guess, I've seen it work, and I'm sure there is more than just the evseStatus byte needed for a well founded decission
                     logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
                     update_evseStatus(evseStatus);
                 } else {
+                    //TODO figure out what substatus (PrivCommRxBuffer[8]) is or should be
                     logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) but substatus (%.2X) not 0x50.", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[8]);
+                    update_evseStatus(evseStatus);
                 }
+                //TODO here we probably have to send the ack with the time included?
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
                 break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
@@ -1026,6 +1075,22 @@ void ENplus::loop()
                         logger.printfln("RFID Card %s", rfid);
                     }
                 }
+                {
+                    //sendRequest0E
+                    time_t t = now(); // get current time
+                    PrivCommTxBuffer[PayloadStart + 0] = 0x40;
+                    PrivCommTxBuffer[PayloadStart + 1] = year(t) -2000;
+                    PrivCommTxBuffer[PayloadStart + 2] = month(t);
+                    PrivCommTxBuffer[PayloadStart + 3] = day(t);
+                    PrivCommTxBuffer[PayloadStart + 4] = hour(t);
+                    PrivCommTxBuffer[PayloadStart + 5] = minute(t);
+                    PrivCommTxBuffer[PayloadStart + 6] = second(t);
+                    PrivCommTxBuffer[PayloadStart + 7] = 0;
+                    PrivCommTxBuffer[PayloadStart + 8] = 0;
+                    PrivCommTxBuffer[PayloadStart + 9] = 0;
+                    PrivCommTxBuffer[PayloadStart + 10] = 0;
+                    PrivCommSend(0xA8, 11, PrivCommTxBuffer); // privCommCmdA8RTDataAck
+                }
                 break;
             case 0x09:
                 logger.printfln("   cmd_%.2X seq:%.2X Charging stop reason: %d start: %04d/%02d/%02d %02d:%02d:%02d stopp: %04d/%02d/%02d %02d:%02d:%02d meter: %dWh v1: %d v2: %d v3: %d",
@@ -1092,10 +1157,26 @@ void ENplus::loop()
                     switch( PrivCommRxBuffer[10] ) {
                         case 5: // reset into boot mode
                             logger.printfln("   reset into boot mode complete, handshake next");
-                            sendCommand(Handshake, sizeof(Handshake));
+                            //sendCommand(Handshake, sizeof(Handshake));
+                            RemoteUpdate[7] = 1; // handshake
+                            sendCommand(RemoteUpdate, sizeof(RemoteUpdate));
                             break;
                         case 1: // handshake
-                            logger.printfln("   handshake complete, verify next");
+                            if(FlashVerify[7] == 3) { // flash write
+                                logger.printfln("   handshake complete, flash erase next");
+                                RemoteUpdate[7] = 2; // flash erase
+                                sendCommand(RemoteUpdate, sizeof(RemoteUpdate));
+                            } else if(FlashVerify[7] == 4) { // flash verify
+                                logger.printfln("   handshake complete, flash verify next");
+                                ready_for_next_chunk = true;
+                            }
+                            break;
+                        case 2: // flash erase
+                            logger.printfln("   flash erase complete, flash write next");
+                            ready_for_next_chunk = true;
+                            break;
+                        case 3: // flash write
+                            logger.printfln("   flash write fine");
                             ready_for_next_chunk = true;
                             break;
                         case 4: // verify
@@ -1115,6 +1196,9 @@ void ENplus::loop()
                     sendCommand(EnterAppMode, sizeof(EnterAppMode));
                 }
                 break;
+            case 0x0D:
+                logger.printfln("   cmd_%.2X seq:%.2X cmdAD_ACK", cmd, seq);
+                break;
             case 0x0E:
 // [2021-08-07 07:55:05] Tx(cmd_0E len:76) : FA 03 00 00 0E 11 42 00 00 00 00 00 00 00 00 00 00 0A 01 77 02 37 35 32 30 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 66 08 97 08 14 00 7A 01 01 00 00 00 00 00 00 00 00 00 00 DE 91
 // [2021-08-07 07:55:05] cmd0E_DutyData pwmMax:266
@@ -1130,6 +1214,9 @@ void ENplus::loop()
                     PrivCommRxBuffer[63]);
                 //PrivCommAck(cmd, PrivCommTxBuffer); // Ack?
                 break;
+            case 0x0F:
+                logger.printfln("   cmd_%.2X seq:%.2X Charging start ACK", cmd, seq);
+                break;
             default:
                 logger.printfln("   cmd_%.2X seq:%.2X I don't know what to do about it.", cmd, seq);
                 break;
@@ -1138,6 +1225,13 @@ void ENplus::loop()
     }
 
     evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
+    
+    //resend flash commands if needed
+    if(this->firmware_update_running && flash_seq == PrivCommTxBuffer[5] && !ready_for_next_chunk && deadline_elapsed(last_flash + 2000)) {
+        last_flash = millis();
+        logger.printfln("resend the last chunk? fseq: %d, seq: %d rfnc: %s", flash_seq, PrivCommTxBuffer[5], ready_for_next_chunk?"true":"false");
+        sendCommand(FlashVerify, MAXLENGTH+11); // next chunk (11 bytes header) 
+    }
 }
 
 void ENplus::setup_evse()
@@ -1228,6 +1322,15 @@ void ENplus::setup_evse()
 //        return;
 //    }
 
+        /* task_scheduler.scheduleOnce("reboot_GD", [this](){ */
+        /*     if(!initialized) { */
+        /*         logger.printfln("   try to reset GD chip, cycle boot mode, app mode"); */
+        /*         RemoteUpdate[7] = 5; // Reset into boot mode */
+        /*         sendCommand(RemoteUpdate, sizeof(RemoteUpdate)); */
+        /*         sendCommand(EnterAppMode, sizeof(EnterAppMode)); */
+        /*     } */
+        /* }, 5000); */
+
     initialized = true;
 }
 
@@ -1244,7 +1347,7 @@ void ENplus::update_evse_low_level_state() {
     uint32_t resistances[2];
     bool gpio[5];
 
-//    int rc = tf_evse_get_low_level_state(&evse,
+//    int rc = tf_evse_get_low_level_state(
 //        &low_level_mode_enabled,
 //        &led_state,
 //        &cp_pwm_duty_cycle,
@@ -1294,7 +1397,7 @@ void ENplus::update_evse_state() {
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
-    int rc = bs_evse_get_state(&evse,
+    int rc = bs_evse_get_state(
         &iec61851_state,
         &vehicle_state,
         &contactor_state,
@@ -1317,15 +1420,7 @@ void ENplus::update_evse_state() {
     if(last_allowed_charging_current != allowed_charging_current) {
         evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
         logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
-        time_t t=now();
-        ChargingSettings[2] = year(t) -2000;
-        ChargingSettings[3] = month(t);
-        ChargingSettings[4] = day(t);
-        ChargingSettings[5] = hour(t);
-        ChargingSettings[6] = minute(t);
-        ChargingSettings[7] = second(t);
-        ChargingSettings[17] = uint8_t(allowed_charging_current/1000);
-        sendCommand(ChargingSettings, sizeof(ChargingSettings));
+        bs_evse_set_max_charging_current(allowed_charging_current);
     }
     bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
     evse_state.get("lock_state")->updateUint(lock_state);
@@ -1389,7 +1484,7 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
 	if(evse_auto_start_charging.get("auto_start_charging")->asBool()
            && evseStatus == 2 || (evseStatus == 6 && last_evseStatus == 0)) { // just plugged in or already plugged in at startup
             logger.printfln("Start charging automatically");
-            bs_evse_start_charging(&evse);
+            bs_evse_start_charging();
         }
     }
     evse_state.get("vehicle_state")->updateUint(evse_state.get("iec61851_state")->asUint());
@@ -1402,7 +1497,7 @@ void ENplus::update_evse_user_calibration() {
     bool user_calibration_active;
     int16_t voltage_diff, voltage_mul, voltage_div, resistance_2700, resistance_880[14];
 
-//    int rc = tf_evse_get_user_calibration(&evse,
+//    int rc = tf_evse_get_user_calibration(
 //        &user_calibration_active,
 //        &voltage_diff,
 //        &voltage_mul,
@@ -1430,15 +1525,11 @@ bool ENplus::is_in_bootloader(int rc) {
 bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t chunk_index, uint8_t *data, size_t chunk_length, bool final, size_t complete_length) {
 
     if(chunk_index == 0) {
-        logger.printfln("EVSE FlashVerify");
- /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 05 00 00 00 60 33  ^M */
- /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 01 06 00 00 00 05 00 00 00 03 AA  ^M */
- /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 16 0A 00 00 00 00 00 00 00 01 00 00 00 64 C0  ^M */
- /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 16 06 00 00 00 01 00 00 00 E9 6A  ^M */
- /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 17 0A 00 00 00 00 00 00 00 02 00 00 00 66 05  ^M */
- /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 17 06 00 00 00 02 00 00 00 E4 BE  ^M */
  /* [PRIV_COMM, 1875]: Tx(cmd_AB len:820) :  FA 03 00 00 AB 18 2A 03 00 00 00 08 00 00 03 00 90 01 68 16 00 20 1D 25 00 08 3B 0E 00 08 3D 0E 00 08 41 0E 00 08 45 0E 00 08 49 0E 00 08 00 00 00 00 00 00 */
-        sendCommand(EnterBootMode, sizeof(EnterBootMode));
+        //sendCommand(EnterBootMode, sizeof(EnterBootMode));
+        logger.printfln("EVSE RemoteUpdate, reset into boot mode");
+        RemoteUpdate[7] = 5; // Reset into boot mode
+        sendCommand(RemoteUpdate, sizeof(RemoteUpdate));
         /* logger.printfln("Failed to start update: %s", Update.errorString()); */
         /* request.send(400, "text/plain", Update.errorString()); */
         /* update_aborted = true; */
@@ -1449,6 +1540,10 @@ bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t c
     size_t length = chunk_length;
 
     while (length > 0) {
+        while (!ready_for_next_chunk) {
+            loop(); //TODO make this more elegant
+        }
+
         //calculate maxlength
         size_t maxlength = MIN(length, length % 800); // 800 bytes is the max flash verify/write size
         maxlength = maxlength > 0 ? maxlength : 800;  // process the reminder first, then 800b chunks
@@ -1462,19 +1557,21 @@ bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t c
         FlashVerify[3] = (gd_address & 0x00FF0000) >> 16;
         FlashVerify[4] = (gd_address & 0xFF000000) >> 24;
 
+        FlashVerify[7] = command; // flash write (3=write, 4=verify)
+
         //logger.printfln("Processing update chunk with: chunk_index %.6X (%d), gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, complete_l %d, final: %s", chunk_index, chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, complete_length, final?"true":"false");
         logger.printfln("c_index %d, gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, l %d, ml %d, ll %d, final: %s", chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, length, maxlength, complete_length, final?"true":"false");
-
-        // copy data
-        memcpy(FlashVerify+11, data + chunk_offset, maxlength);
 
         if (update_aborted)
             return true;
 
-        while (!ready_for_next_chunk) {
-            loop(); //TODO make this more elegant
-        }
+        // copy data
+        memcpy(FlashVerify+11, data + chunk_offset, maxlength);
+
+        MAXLENGTH = maxlength;
         sendCommand(FlashVerify, maxlength+11); // next chunk (11 bytes header) 
+        flash_seq = PrivCommTxBuffer[5];
+        last_flash = millis();
         ready_for_next_chunk = false;
 
         chunk_offset = chunk_offset + maxlength;

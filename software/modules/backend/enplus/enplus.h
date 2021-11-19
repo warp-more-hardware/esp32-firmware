@@ -69,12 +69,12 @@ private:
 
     bool debug = false;
 
-    int bs_evse_start_charging(TF_EVSE *evse);
-    int bs_evse_stop_charging(TF_EVSE *evse);
-    int bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart);
-    int bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current);
+    int bs_evse_start_charging();
+    int bs_evse_stop_charging();
+    int bs_evse_set_charging_autostart(bool autostart);
+    int bs_evse_set_max_charging_current(uint16_t max_current);
     int bs_evse_persist_config();
-    int bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime);
+    int bs_evse_get_state(uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime);
 
     Config evse_config;
     Config evse_state;
@@ -93,8 +93,6 @@ private:
     Config evse_privcomm;
     uint32_t last_current_update = 0;
     bool shutdown_logged = false;
-
-    TF_EVSE evse;
 
     /* GD Firmware updater */
     bool handle_update_chunk(int command, WebServerRequest request, size_t chunk_index, uint8_t *data, size_t chunk_length, bool final, size_t complete_length);
