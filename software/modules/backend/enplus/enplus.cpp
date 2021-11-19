@@ -94,12 +94,16 @@ byte Init15[] = {0xAA, 0x18, 0x09, 0x01, 0x00, 0x00};
 //W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 40 05 00 14 09 01 00 00 11 30
 //I (2021-04-11 18:36:27) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 3150080
 
-//privCommCmdA7StartTransAck
-byte StartCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-byte StopCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00};
+//privCommCmdA7StartTransAck GD Firmware before 1.1.212?
+byte OldStartCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte StartCharging[] = {0xA6, 0x31, 0x39, 0x38, 0x30, 0x30, 0x30, 0x32, 0x30, 0x34, 0x39, 0x30, 0x5F, 0x41, 0x50, 0x50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
+byte OldStopCharging[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
+byte StopCharging[]  = {0xA6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x37, 0x38, 0x35, 0x34, 0x31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0, 0, 0, 0, 0, 0, 0, 0};
 
 //privCommCmdAFSmartCurrCtl
-byte ChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte OldChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//privCommCmdADSmartchargeCtl
+byte ChargingSettings[] = {0xAD, 0x01, 0x91, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0, 0, 0, 0, 0x79, 0x08, 0x16, 0x10, 0x04, 0x10, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x06, 0, 0, 0, 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // Enter boot mode: Tx(cmd_AB len: 20): FA 03 00 00 AB 14 0A 00 00 00 00 00 00 00 05 00 00 00 62 B2
 // ESP> W (2021-10-04 10:04:35) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 05 00 00 00 60 33  ^M
@@ -252,6 +256,7 @@ void ENplus::PrivCommAck(byte cmd, byte *data) {
     // the first 4 bytes never change and should be set already
     data[4] = cmd ^ 0xA0;  // complement command for ack
     data[6] = 1; //len
+    //data[5]=seq; //should already be copied from RxBuffer
     data[7] = 0; //len
     data[8] = 0; //payload
     uint16_t crc = crc16_modbus(data, 9);
@@ -316,6 +321,7 @@ ENplus::ENplus()
         {"SerialNumber", Config::Str("",20)},
         {"evse_found", Config::Bool(false)},
         {"initialized", Config::Bool(false)},
+        {"OldFirmware", Config::Bool(false)},
         {"jumper_configuration", Config::Uint8(3)}, // 3 = 16 Ampere = 11KW for the EN+ wallbox
         {"has_lock_switch", Config::Bool(false)}    // no key lock switch
     });
@@ -407,16 +413,28 @@ int ENplus::bs_evse_start_charging() {
     logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
 
     time_t t=now();     // get current time
-    ChargingSettings[2] = year(t) -2000;
-    ChargingSettings[3] = month(t);
-    ChargingSettings[4] = day(t);
-    ChargingSettings[5] = hour(t);
-    ChargingSettings[6] = minute(t);
-    ChargingSettings[7] = second(t);
-    ChargingSettings[17] = allowed_charging_current;
-    sendCommand(ChargingSettings, sizeof(ChargingSettings));
-
-    sendCommand(StartCharging, sizeof(StartCharging));
+    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+        OldChargingSettings[2] = year(t) -2000;
+        OldChargingSettings[3] = month(t);
+        OldChargingSettings[4] = day(t);
+        OldChargingSettings[5] = hour(t);
+        OldChargingSettings[6] = minute(t);
+        OldChargingSettings[7] = second(t);
+        OldChargingSettings[17] = allowed_charging_current;
+        sendCommand(OldChargingSettings, sizeof(OldChargingSettings));
+        sendCommand(OldStartCharging, sizeof(OldStartCharging));
+    } else {
+        //ChargingSettings[56] = year(t) -2000;
+        ChargingSettings[57] = month(t);
+        ChargingSettings[58] = day(t);
+        ChargingSettings[59] = hour(t);
+        ChargingSettings[60] = minute(t);
+        ChargingSettings[61] = second(t);
+        ChargingSettings[70] = allowed_charging_current;
+        //    ChargingSettings[74] = 1;      // Phases
+        sendCommand(ChargingSettings, sizeof(ChargingSettings));
+        sendCommand(StartCharging, sizeof(StartCharging));
+    }
     return 0;
 }
 
@@ -460,15 +478,26 @@ int ENplus::bs_evse_set_max_charging_current(uint16_t max_current) {
     logger.printfln("EVSE calculated allowed charging limit is %d Ampere", allowed_charging_current);
 
     time_t t=now();     // get current time
-    ChargingSettings[2] = year(t) -2000;
-    ChargingSettings[3] = month(t);
-    ChargingSettings[4] = day(t);
-    ChargingSettings[5] = hour(t);
-    ChargingSettings[6] = minute(t);
-    ChargingSettings[7] = second(t);
-    ChargingSettings[17] = allowed_charging_current;
-    sendCommand(ChargingSettings, sizeof(ChargingSettings));
-
+    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+        OldChargingSettings[2] = year(t) -2000;
+        OldChargingSettings[3] = month(t);
+        OldChargingSettings[4] = day(t);
+        OldChargingSettings[5] = hour(t);
+        OldChargingSettings[6] = minute(t);
+        OldChargingSettings[7] = second(t);
+        OldChargingSettings[17] = allowed_charging_current;
+        sendCommand(OldChargingSettings, sizeof(OldChargingSettings));
+    } else {
+        //ChargingSettings[56] = year(t) -2000;
+        ChargingSettings[57] = month(t);
+        ChargingSettings[58] = day(t);
+        ChargingSettings[59] = hour(t);
+        ChargingSettings[60] = minute(t);
+        ChargingSettings[61] = second(t);
+        ChargingSettings[70] = allowed_charging_current;
+        //    ChargingSettings[74] = 1;      // Phases
+        sendCommand(ChargingSettings, sizeof(ChargingSettings));
+    }
     return 0;
 }
 
@@ -881,9 +910,14 @@ void ENplus::loop()
                 if(!evse_hardware_configuration.get("initialized")->asBool()) {
                     initialized =
                         evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
-                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258
-                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 258;    // higest known working version (we assume earlier versions work as well)
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258, 1.1.525, 1.1.538
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 538;    // higest known working version (we assume earlier versions work as well)
                     evse_hardware_configuration.get("initialized")->updateBool(initialized);
+                    evse_hardware_configuration.get("OldFirmware")->updateBool(
+                        evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && 
+                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() < 538   //TODO 1.1.258, 1.1.525, 1.1.538 lowest known working version (we assume later versions work as well)
+                    );
                     register_urls(); //TODO 
                     if(initialized) {
                          logger.printfln("EN+ GD EVSE initialized.");
@@ -899,13 +933,18 @@ void ENplus::loop()
 // 00 00 02 02 00 00 00 00 00 00 00 00 00
 /* 853540                000: FA 03 00 00 03 0C 0E 00 50 02 02 05 00 00 00 00 00 00 00 00 */
 /* 853540      Rx cmd_03 seq:0C len:14 crc:3DE8 */
+/* (2021-10-04 10:04:39) [PRIV_COMM, 2033]: Rx(cmd_03 len:24) :  FA 03 00 00 03 03 0E 00 00 02 02 00 00 00 00 00 00 00 00 00 00 00 9C 52 */
+/* (2021-10-04 10:04:40) [PRIV_COMM, 1875]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 03 07 00 10 15 0A 04 0A 04 27 4A D4 */
                 evseStatus = PrivCommRxBuffer[9];
                 if( PrivCommRxBuffer[8]==0x50 ) { // TODO this 0x50 is a wild guess, I've seen it work, and I'm sure there is more than just the evseStatus byte needed for a well founded decission
                     logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
                     update_evseStatus(evseStatus);
                 } else {
+                    //TODO figure out what substatus (PrivCommRxBuffer[8]) is or should be
                     logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) but substatus (%.2X) not 0x50.", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[8]);
+                    update_evseStatus(evseStatus);
                 }
+                //TODO here we probably have to send the ack with the time included?
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA3StatusAck
                 break;
             case 0x04: // time request / ESP32-GD32 communication heartbeat
@@ -1157,6 +1196,9 @@ void ENplus::loop()
                     sendCommand(EnterAppMode, sizeof(EnterAppMode));
                 }
                 break;
+            case 0x0D:
+                logger.printfln("   cmd_%.2X seq:%.2X cmdAD_ACK", cmd, seq);
+                break;
             case 0x0E:
 // [2021-08-07 07:55:05] Tx(cmd_0E len:76) : FA 03 00 00 0E 11 42 00 00 00 00 00 00 00 00 00 00 0A 01 77 02 37 35 32 30 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 66 08 97 08 14 00 7A 01 01 00 00 00 00 00 00 00 00 00 00 DE 91
 // [2021-08-07 07:55:05] cmd0E_DutyData pwmMax:266
@@ -1171,6 +1213,9 @@ void ENplus::loop()
                     PrivCommRxBuffer[61]+256*PrivCommRxBuffer[62],
                     PrivCommRxBuffer[63]);
                 //PrivCommAck(cmd, PrivCommTxBuffer); // Ack?
+                break;
+            case 0x0F:
+                logger.printfln("   cmd_%.2X seq:%.2X Charging start ACK", cmd, seq);
                 break;
             default:
                 logger.printfln("   cmd_%.2X seq:%.2X I don't know what to do about it.", cmd, seq);
@@ -1277,6 +1322,15 @@ void ENplus::setup_evse()
 //        return;
 //    }
 
+        /* task_scheduler.scheduleOnce("reboot_GD", [this](){ */
+        /*     if(!initialized) { */
+        /*         logger.printfln("   try to reset GD chip, cycle boot mode, app mode"); */
+        /*         RemoteUpdate[7] = 5; // Reset into boot mode */
+        /*         sendCommand(RemoteUpdate, sizeof(RemoteUpdate)); */
+        /*         sendCommand(EnterAppMode, sizeof(EnterAppMode)); */
+        /*     } */
+        /* }, 5000); */
+
     initialized = true;
 }
 
@@ -1366,15 +1420,7 @@ void ENplus::update_evse_state() {
     if(last_allowed_charging_current != allowed_charging_current) {
         evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
         logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
-        time_t t=now();
-        ChargingSettings[2] = year(t) -2000;
-        ChargingSettings[3] = month(t);
-        ChargingSettings[4] = day(t);
-        ChargingSettings[5] = hour(t);
-        ChargingSettings[6] = minute(t);
-        ChargingSettings[7] = second(t);
-        ChargingSettings[17] = uint8_t(allowed_charging_current/1000);
-        sendCommand(ChargingSettings, sizeof(ChargingSettings));
+        bs_evse_set_max_charging_current(allowed_charging_current);
     }
     bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
     evse_state.get("lock_state")->updateUint(lock_state);
