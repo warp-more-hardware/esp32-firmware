@@ -398,7 +398,7 @@ ENplus::ENplus()
     });
 }
 
-int ENplus::bs_evse_start_charging(TF_EVSE *evse) {
+int ENplus::bs_evse_start_charging() {
     uint8_t allowed_charging_current = uint8_t(evse_state.get("allowed_charging_current")->asUint()/1000);
     logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
 
@@ -416,7 +416,7 @@ int ENplus::bs_evse_start_charging(TF_EVSE *evse) {
     return 0;
 }
 
-int ENplus::bs_evse_stop_charging(TF_EVSE *evse) {
+int ENplus::bs_evse_stop_charging() {
     logger.printfln("EVSE stop charging");
     sendCommand(StopCharging, sizeof(StopCharging));
     return 0;
@@ -440,14 +440,14 @@ int ENplus::bs_evse_persist_config() {
     }
 }
 
-int ENplus::bs_evse_set_charging_autostart(TF_EVSE *evse, bool autostart) {
+int ENplus::bs_evse_set_charging_autostart(bool autostart) {
     logger.printfln("EVSE set auto start charging to %s", autostart ? "true" :"false");
     evse_auto_start_charging.get("auto_start_charging")->updateBool(autostart);
     bs_evse_persist_config();
     return 0;
 }
 
-int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current) {
+int ENplus::bs_evse_set_max_charging_current(uint16_t max_current) {
     evse_max_charging_current.get("max_current_configured")->updateUint(max_current);
     bs_evse_persist_config();
     update_evse_state();
@@ -468,7 +468,7 @@ int ENplus::bs_evse_set_max_charging_current(TF_EVSE *evse, uint16_t max_current
     return 0;
 }
 
-int ENplus::bs_evse_get_state(TF_EVSE *evse, uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
+int ENplus::bs_evse_get_state(uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime) {
 //    bool response_expected = true;
 //    tf_tfp_prepare_send(evse->tfp, TF_EVSE_FUNCTION_GET_STATE, 0, 17, response_expected);
     uint32_t allowed_charging_current;
@@ -570,7 +570,7 @@ String ENplus::get_evse_debug_line() {
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
-    int rc = bs_evse_get_state(&evse,
+    int rc = bs_evse_get_state(
         &iec61851_state,
         &vehicle_state,
         &contactor_state,
@@ -595,7 +595,7 @@ String ENplus::get_evse_debug_line() {
     uint32_t resistances[2];
     bool gpio[5];
 
-//    rc = tf_evse_get_low_level_state(&evse,
+//    rc = tf_evse_get_low_level_state(
 //        &low_level_mode_enabled,
 //        &led_state,
 //        &cp_pwm_duty_cycle,
@@ -633,7 +633,7 @@ String ENplus::get_evse_debug_line() {
 }
 
 void ENplus::set_managed_current(uint16_t current) {
-    //is_in_bootloader(tf_evse_set_managed_current(&evse, current));
+    //is_in_bootloader(tf_evse_set_managed_current(current));
     evse_managed_current.get("current")->updateUint(current);
     evse_max_charging_current.get("max_current_managed")->updateUint(current);
     this->last_current_update = millis();
@@ -655,15 +655,15 @@ void ENplus::register_urls()
     api.addState("evse/privcomm", &evse_privcomm, {}, 1000);
 
     api.addCommand("evse/auto_start_charging_update", &evse_auto_start_charging_update, {}, [this](){
-        bs_evse_set_charging_autostart(&evse, evse_auto_start_charging_update.get("auto_start_charging")->asBool());
+        bs_evse_set_charging_autostart(evse_auto_start_charging_update.get("auto_start_charging")->asBool());
     }, false);
 
     api.addCommand("evse/current_limit", &evse_current_limit, {}, [this](){
-        bs_evse_set_max_charging_current(&evse, evse_current_limit.get("current")->asUint());
+        bs_evse_set_max_charging_current(evse_current_limit.get("current")->asUint());
     }, false);
 
-    api.addCommand("evse/stop_charging", &evse_stop_charging, {}, [this](){bs_evse_stop_charging(&evse);}, true);
-    api.addCommand("evse/start_charging", &evse_start_charging, {}, [this](){bs_evse_start_charging(&evse);}, true);
+    api.addCommand("evse/stop_charging", &evse_stop_charging, {}, [this](){bs_evse_stop_charging();}, true);
+    api.addCommand("evse/start_charging", &evse_start_charging, {}, [this](){bs_evse_start_charging();}, true);
 
     api.addCommand("evse/managed_current_update", &evse_managed_current, {}, [this](){
         this->set_managed_current(evse_managed_current.get("current")->asUint());
@@ -1244,7 +1244,7 @@ void ENplus::update_evse_low_level_state() {
     uint32_t resistances[2];
     bool gpio[5];
 
-//    int rc = tf_evse_get_low_level_state(&evse,
+//    int rc = tf_evse_get_low_level_state(
 //        &low_level_mode_enabled,
 //        &led_state,
 //        &cp_pwm_duty_cycle,
@@ -1294,7 +1294,7 @@ void ENplus::update_evse_state() {
     uint16_t allowed_charging_current;
     uint32_t time_since_state_change, uptime;
 
-    int rc = bs_evse_get_state(&evse,
+    int rc = bs_evse_get_state(
         &iec61851_state,
         &vehicle_state,
         &contactor_state,
@@ -1389,7 +1389,7 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
 	if(evse_auto_start_charging.get("auto_start_charging")->asBool()
            && evseStatus == 2 || (evseStatus == 6 && last_evseStatus == 0)) { // just plugged in or already plugged in at startup
             logger.printfln("Start charging automatically");
-            bs_evse_start_charging(&evse);
+            bs_evse_start_charging();
         }
     }
     evse_state.get("vehicle_state")->updateUint(evse_state.get("iec61851_state")->asUint());
@@ -1402,7 +1402,7 @@ void ENplus::update_evse_user_calibration() {
     bool user_calibration_active;
     int16_t voltage_diff, voltage_mul, voltage_div, resistance_2700, resistance_880[14];
 
-//    int rc = tf_evse_get_user_calibration(&evse,
+//    int rc = tf_evse_get_user_calibration(
 //        &user_calibration_active,
 //        &voltage_diff,
 //        &voltage_mul,
