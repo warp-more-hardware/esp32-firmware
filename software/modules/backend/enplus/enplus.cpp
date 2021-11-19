@@ -1026,6 +1026,22 @@ void ENplus::loop()
                         logger.printfln("RFID Card %s", rfid);
                     }
                 }
+                {
+                    //sendRequest0E
+                    time_t t = now(); // get current time
+                    PrivCommTxBuffer[PayloadStart + 0] = 0x40;
+                    PrivCommTxBuffer[PayloadStart + 1] = year(t) -2000;
+                    PrivCommTxBuffer[PayloadStart + 2] = month(t);
+                    PrivCommTxBuffer[PayloadStart + 3] = day(t);
+                    PrivCommTxBuffer[PayloadStart + 4] = hour(t);
+                    PrivCommTxBuffer[PayloadStart + 5] = minute(t);
+                    PrivCommTxBuffer[PayloadStart + 6] = second(t);
+                    PrivCommTxBuffer[PayloadStart + 7] = 0;
+                    PrivCommTxBuffer[PayloadStart + 8] = 0;
+                    PrivCommTxBuffer[PayloadStart + 9] = 0;
+                    PrivCommTxBuffer[PayloadStart + 10] = 0;
+                    PrivCommSend(0xA8, 11, PrivCommTxBuffer); // privCommCmdA8RTDataAck
+                }
                 break;
             case 0x09:
                 logger.printfln("   cmd_%.2X seq:%.2X Charging stop reason: %d start: %04d/%02d/%02d %02d:%02d:%02d stopp: %04d/%02d/%02d %02d:%02d:%02d meter: %dWh v1: %d v2: %d v3: %d",
