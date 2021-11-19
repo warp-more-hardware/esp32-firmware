@@ -42,6 +42,9 @@ extern API api;
 extern bool firmware_update_allowed;
 
 bool ready_for_next_chunk = false;
+size_t MAXLENGTH;
+byte flash_seq;
+uint32_t last_flash = 0;
 
 // Charging profile:
 // 10A ESP> W (2021-06-06 11:05:10) [PRIV_COMM, 1859]: Tx(cmd_AD len:122) :  FA 03 00 00 AD 1D 70 00 00 44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 15 06 06 0B 05 0A 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 01 00 00 00 00 00 00 00 00 00 00 CE 75
@@ -103,7 +106,8 @@ byte ChargingSettings[] = {0xAF, 0, 0x15, 0x06, 0x04, 0x0D, 0x0A, 0x21, 0x80, 0x
 // Enter boot mode acknowledge: Rx(cmd_0B len: 16): FA 03 00 00 0B 14 06 00 00 00 05 00 00 00 F1 3A
 // erase flash
 // ESP> W (2021-10-04 10:04:39) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 17 0A 00 00 00 00 00 00 00 02 00 00 00 66 05  ^M
-byte EnterBootMode[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00};
+//byte EnterBootMode[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00};
+byte RemoteUpdate[] = {0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00}; // #7 is the operation command [0-5]
 // Exit boot mode, enter application mode: Tx (cmd_AB len: 24): FA 03 00 00 AB 5A 0E 00 00 00 03 08 FC FF 00 00 02 00 4F 4B 00 00 E1 98
 byte EnterAppMode[] = {0xAB, 0x00, 0x00, 0x03, 0x08, 0xFC, 0xFF, 0x00, 0x00, 0x02, 0x00, 0x4F, 0x4B, 0x00, 0x00};
 //Handshake: //Tx (cmd_AB len:20): FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 01 00 00 00 61 03
@@ -680,25 +684,8 @@ void ENplus::register_urls()
 
     }, true);
 
-#ifdef MODULE_WS_AVAILABLE
-    server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
-        task_scheduler.scheduleOnce("enable evse debug", [this](){
-            ws.pushStateUpdate(this->get_evse_debug_header(), "evse/debug_header");
-            debug = true;
-        }, 0);
-        request.send(200);
-    });
-
-    server.on("/evse/stop_debug", HTTP_GET, [this](WebServerRequest request){
-        task_scheduler.scheduleOnce("enable evse debug", [this](){
-            debug = false;
-        }, 0);
-        request.send(200);
-    });
-#endif
-
     server.on("/update_gd", HTTP_GET, [this](WebServerRequest request){
-        request.send(200, "text/html", "<form><input id=\"gd_firmware\"type=\"file\"> <button id=\"u_firmware\"type=\"button\"onclick='u(\"gd_firmware\")'>Upload gd_firmware</button> <label id=\"p_firmware\"></label></form><script>function u(e){var t,n,d,o=document.getElementById(e).files;0==o.length?alert(\"No file selected!\"):(document.getElementById(\"gd_firmware\").disabled=!0,document.getElementById(\"u_firmware\").disabled=!0,t=o[0],n=new XMLHttpRequest,d=document.getElementById(\"p_\"+e),n.onreadystatechange=function(){4==n.readyState&&(200==n.status?(document.open(),document.write(n.responseText),document.close()):(0==n.status?alert(\"Server closed the connection abruptly!\"):alert(n.status+\" Error!\\n\"+n.responseText),location.reload()))},n.upload.addEventListener(\"progress\",function(e){e.lengthComputable&&(d.innerHTML=e.loaded/e.total*100+\"% (\"+e.loaded+\" / \"+e.total+\")\")},!1),n.open(\"POST\",\"/flash_\"+e,!0),n.send(t))}</script>");
+        request.send(200, "text/html", "<form><input id=\"gd_firmware\"type=\"file\"> <button id=\"u_firmware\"type=\"button\"onclick='u(\"gd_firmware\")'>Upload GD Firmware</button> <label id=\"p_firmware\"></label></form><form><input id=\"verify\"type=\"file\"> <button id=\"u_verify\"type=\"button\"onclick='u(\"verify\")'>Verify GD Firmware</button> <label id=\"p_verify\"></label></form><script>function u(e){var t,n,d,o=document.getElementById(e).files;0==o.length?alert(\"No file selected!\"):(document.getElementById(\"gd_firmware\").disabled=!0,document.getElementById(\"u_firmware\").disabled=!0,document.getElementById(\"verify\").disabled=!0,document.getElementById(\"u_verify\").disabled=!0,t=o[0],n=new XMLHttpRequest,d=document.getElementById(\"p_\"+e),n.onreadystatechange=function(){4==n.readyState&&(200==n.status?(document.open(),document.write(n.responseText),document.close()):(0==n.status?alert(\"Server closed the connection abruptly!\"):alert(n.status+\" Error!\\n\"+n.responseText),location.reload()))},n.upload.addEventListener(\"progress\",function(e){e.lengthComputable&&(d.innerHTML=e.loaded/e.total*100+\"% (\"+e.loaded+\" / \"+e.total+\")\")},!1),n.open(\"POST\",\"/flash_\"+e,!0),n.send(t))}</script>");
     });
 
     server.on("/flash_gd_firmware", HTTP_POST, [this](WebServerRequest request){
@@ -720,9 +707,31 @@ void ENplus::register_urls()
             return false;
         }
         this->firmware_update_running = true;
-        return handle_update_chunk(0, request, index, data, len, final, request.contentLength());
+        return handle_update_chunk(3, request, index, data, len, final, request.contentLength());
     });
 
+    server.on("/flash_verify", HTTP_POST, [this](WebServerRequest request){
+        request.send(200, "text/plain", "Update OK");
+    },[this](WebServerRequest request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+        return handle_update_chunk(4, request, index, data, len, final, request.contentLength());
+    });
+
+#ifdef MODULE_WS_AVAILABLE
+    server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
+        task_scheduler.scheduleOnce("enable evse debug", [this](){
+            ws.pushStateUpdate(this->get_evse_debug_header(), "evse/debug_header");
+            debug = true;
+        }, 0);
+        request.send(200);
+    });
+
+    server.on("/evse/stop_debug", HTTP_GET, [this](WebServerRequest request){
+        task_scheduler.scheduleOnce("enable evse debug", [this](){
+            debug = false;
+        }, 0);
+        request.send(200);
+    });
+#endif
 }
 
 void ENplus::loop()
@@ -875,9 +884,10 @@ void ENplus::loop()
                         evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258
                         evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 258;    // higest known working version (we assume earlier versions work as well)
                     evse_hardware_configuration.get("initialized")->updateBool(initialized);
+                    register_urls(); //TODO 
                     if(initialized) {
                          logger.printfln("EN+ GD EVSE initialized.");
-                         register_urls();
+                         //register_urls();
                     } else {
                          logger.printfln("EN+ GD EVSE Firmware Version or Hardware is not supported.");
                     }
@@ -1108,10 +1118,26 @@ void ENplus::loop()
                     switch( PrivCommRxBuffer[10] ) {
                         case 5: // reset into boot mode
                             logger.printfln("   reset into boot mode complete, handshake next");
-                            sendCommand(Handshake, sizeof(Handshake));
+                            //sendCommand(Handshake, sizeof(Handshake));
+                            RemoteUpdate[7] = 1; // handshake
+                            sendCommand(RemoteUpdate, sizeof(RemoteUpdate));
                             break;
                         case 1: // handshake
-                            logger.printfln("   handshake complete, verify next");
+                            if(FlashVerify[7] == 3) { // flash write
+                                logger.printfln("   handshake complete, flash erase next");
+                                RemoteUpdate[7] = 2; // flash erase
+                                sendCommand(RemoteUpdate, sizeof(RemoteUpdate));
+                            } else if(FlashVerify[7] == 4) { // flash verify
+                                logger.printfln("   handshake complete, flash verify next");
+                                ready_for_next_chunk = true;
+                            }
+                            break;
+                        case 2: // flash erase
+                            logger.printfln("   flash erase complete, flash write next");
+                            ready_for_next_chunk = true;
+                            break;
+                        case 3: // flash write
+                            logger.printfln("   flash write fine");
                             ready_for_next_chunk = true;
                             break;
                         case 4: // verify
@@ -1154,6 +1180,13 @@ void ENplus::loop()
     }
 
     evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
+    
+    //resend flash commands if needed
+    if(this->firmware_update_running && flash_seq == PrivCommTxBuffer[5] && !ready_for_next_chunk && deadline_elapsed(last_flash + 2000)) {
+        last_flash = millis();
+        logger.printfln("resend the last chunk? fseq: %d, seq: %d rfnc: %s", flash_seq, PrivCommTxBuffer[5], ready_for_next_chunk?"true":"false");
+        sendCommand(FlashVerify, MAXLENGTH+11); // next chunk (11 bytes header) 
+    }
 }
 
 void ENplus::setup_evse()
@@ -1446,15 +1479,11 @@ bool ENplus::is_in_bootloader(int rc) {
 bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t chunk_index, uint8_t *data, size_t chunk_length, bool final, size_t complete_length) {
 
     if(chunk_index == 0) {
-        logger.printfln("EVSE FlashVerify");
- /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 05 00 00 00 60 33  ^M */
- /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 01 06 00 00 00 05 00 00 00 03 AA  ^M */
- /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 16 0A 00 00 00 00 00 00 00 01 00 00 00 64 C0  ^M */
- /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 16 06 00 00 00 01 00 00 00 E9 6A  ^M */
- /* [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 17 0A 00 00 00 00 00 00 00 02 00 00 00 66 05  ^M */
- /* [PRIV_COMM, 2033]: Rx(cmd_0B len:16) :  FA 03 00 00 0B 17 06 00 00 00 02 00 00 00 E4 BE  ^M */
  /* [PRIV_COMM, 1875]: Tx(cmd_AB len:820) :  FA 03 00 00 AB 18 2A 03 00 00 00 08 00 00 03 00 90 01 68 16 00 20 1D 25 00 08 3B 0E 00 08 3D 0E 00 08 41 0E 00 08 45 0E 00 08 49 0E 00 08 00 00 00 00 00 00 */
-        sendCommand(EnterBootMode, sizeof(EnterBootMode));
+        //sendCommand(EnterBootMode, sizeof(EnterBootMode));
+        logger.printfln("EVSE RemoteUpdate, reset into boot mode");
+        RemoteUpdate[7] = 5; // Reset into boot mode
+        sendCommand(RemoteUpdate, sizeof(RemoteUpdate));
         /* logger.printfln("Failed to start update: %s", Update.errorString()); */
         /* request.send(400, "text/plain", Update.errorString()); */
         /* update_aborted = true; */
@@ -1465,6 +1494,10 @@ bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t c
     size_t length = chunk_length;
 
     while (length > 0) {
+        while (!ready_for_next_chunk) {
+            loop(); //TODO make this more elegant
+        }
+
         //calculate maxlength
         size_t maxlength = MIN(length, length % 800); // 800 bytes is the max flash verify/write size
         maxlength = maxlength > 0 ? maxlength : 800;  // process the reminder first, then 800b chunks
@@ -1478,19 +1511,21 @@ bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t c
         FlashVerify[3] = (gd_address & 0x00FF0000) >> 16;
         FlashVerify[4] = (gd_address & 0xFF000000) >> 24;
 
+        FlashVerify[7] = command; // flash write (3=write, 4=verify)
+
         //logger.printfln("Processing update chunk with: chunk_index %.6X (%d), gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, complete_l %d, final: %s", chunk_index, chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, complete_length, final?"true":"false");
         logger.printfln("c_index %d, gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, l %d, ml %d, ll %d, final: %s", chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, length, maxlength, complete_length, final?"true":"false");
-
-        // copy data
-        memcpy(FlashVerify+11, data + chunk_offset, maxlength);
 
         if (update_aborted)
             return true;
 
-        while (!ready_for_next_chunk) {
-            loop(); //TODO make this more elegant
-        }
+        // copy data
+        memcpy(FlashVerify+11, data + chunk_offset, maxlength);
+
+        MAXLENGTH = maxlength;
         sendCommand(FlashVerify, maxlength+11); // next chunk (11 bytes header) 
+        flash_seq = PrivCommTxBuffer[5];
+        last_flash = millis();
         ready_for_next_chunk = false;
 
         chunk_offset = chunk_offset + maxlength;
