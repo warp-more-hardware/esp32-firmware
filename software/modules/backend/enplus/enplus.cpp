@@ -1543,6 +1543,8 @@ bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t c
     size_t chunk_offset = 0;
     size_t length = chunk_length;
 
+    FlashVerify[7] = command; // flash write (3=write, 4=verify)
+
     while (length > 0) {
         while (!ready_for_next_chunk) {
             loop(); //TODO make this more elegant
@@ -1560,8 +1562,6 @@ bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t c
         FlashVerify[6] = (gd_address & 0x0000FF00) >> 8;
         FlashVerify[3] = (gd_address & 0x00FF0000) >> 16;
         FlashVerify[4] = (gd_address & 0xFF000000) >> 24;
-
-        FlashVerify[7] = command; // flash write (3=write, 4=verify)
 
         //logger.printfln("Processing update chunk with: chunk_index %.6X (%d), gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, complete_l %d, final: %s", chunk_index, chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, complete_length, final?"true":"false");
         logger.printfln("c_index %d, gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, l %d, ml %d, ll %d, final: %s", chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, length, maxlength, complete_length, final?"true":"false");
