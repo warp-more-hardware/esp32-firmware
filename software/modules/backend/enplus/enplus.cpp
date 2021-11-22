@@ -440,7 +440,11 @@ int ENplus::bs_evse_start_charging() {
 
 int ENplus::bs_evse_stop_charging() {
     logger.printfln("EVSE stop charging");
-    sendCommand(StopCharging, sizeof(StopCharging));
+    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+        sendCommand(OldStopCharging, sizeof(OldStopCharging));
+    } else {
+        sendCommand(StopCharging, sizeof(StopCharging));
+    }
     return 0;
 }
 
