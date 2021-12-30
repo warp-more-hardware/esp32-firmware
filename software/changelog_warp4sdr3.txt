@@ -1,0 +1,6 @@
+<unknown>: 1.0.0 (<unknown>)
+- Initial release
+
+<unknown>: 1.2.90 (<unknown>)
+- Try to catch up to official WARP Charger release
+  with the same version number
