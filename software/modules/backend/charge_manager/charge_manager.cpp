@@ -316,6 +316,8 @@ void ChargeManager::distribute_current()
 
     uint32_t current_array[MAX_CLIENTS] = {0};
 
+    int color = available_current == 0 ? 0xff0000 : 0xffffff; // red (no charging allowed) or innocent white ;-) (which should be replaced later on in any case)
+
     // Handle unreachable EVSEs
     {
         // If any EVSE is unreachable or in another error state, we set the available current to 0.
@@ -369,9 +371,11 @@ void ChargeManager::distribute_current()
         if (unreachable_evse_found) {
             // Shut down everything.
             available_current = 0;
+            color = 0xff00ff; // pink, wallbox offline panic mode
             LOCAL_LOG("%s", "stage 0: Unreachable, unreactive or misconfigured EVSE(s) found. Setting available current to 0 mA.");
             charge_manager_state.get("state")->updateUint(2);
         } else {
+            color = 0x00ff00; // green, we are good, full speed charging
             charge_manager_state.get("state")->updateUint(1);
             if (last_print_local_log_was_error) {
                 last_print_local_log_was_error = false;
@@ -556,6 +560,8 @@ void ChargeManager::distribute_current()
                 continue;
             }
 
+            color = 0x0000ff; // blue, charging current will be shared / limited
+
             LOCAL_LOG("stage 1: Throttled %s (%s) to %d mA.",
                     charger_cfg.get("name")->asString().c_str(),
                     charger_cfg.get("host")->asString().c_str(),
@@ -609,6 +615,9 @@ void ChargeManager::distribute_current()
             LOCAL_LOG("%s", "Skipping stage 2");
         }
     }
+
+    // update the statuslight color setting (green: full speed charging, blue: shared charging, red: no charging allowed, pink: wallbox offline - no charging, white: should not happen)
+    api.callCommand("statuslight/color", Config::ConfUpdateObject{{ {"color", color} }});
 
     if (print_local_log) {
         local_log = distribution_log;
