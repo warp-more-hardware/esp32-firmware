@@ -35,7 +35,7 @@
 extern EventLog logger;
 
 extern TaskScheduler task_scheduler;
-extern TF_HalContext hal;
+extern TF_HAL hal;
 extern WebServer server;
 
 extern API api;
@@ -333,20 +333,22 @@ ENplus::ENplus()
         {"adc_values", Config::Array({
                 Config::Uint16(0),
                 Config::Uint16(0),
-            }, Config::Uint16(0), 2, 2, Config::type_id<Config::ConfUint>())
+            }, new Config{Config::Uint16(0)}, 2, 2, Config::type_id<Config::ConfUint>())
         },
         {"voltages", Config::Array({
                 Config::Int16(0),
                 Config::Int16(0),
                 Config::Int16(0),
-            }, Config::Int16(0), 3, 3, Config::type_id<Config::ConfInt>())
+            }, new Config{Config::Int16(0)}, 3, 3, Config::type_id<Config::ConfInt>())
         },
         {"resistances", Config::Array({
                 Config::Uint32(0),
                 Config::Uint32(0),
-            }, Config::Uint32(0), 2, 2, Config::type_id<Config::ConfUint>())
+            }, new Config{Config::Uint32(0)}, 2, 2, Config::type_id<Config::ConfUint>())
         },
-        {"gpio", Config::Array({Config::Bool(false),Config::Bool(false),Config::Bool(false),Config::Bool(false), Config::Bool(false)}, Config::Bool(false), 5, 5, Config::type_id<Config::ConfBool>())}
+        {"gpio", Config::Array({Config::Bool(false),Config::Bool(false),Config::Bool(false),Config::Bool(false), Config::Bool(false)}, new Config{Config::Bool(false)}, 5, 5, Config::type_id<Config::ConfBool>())},
+        {"hardware_version", Config::Uint8(0)},
+        {"charging_time", Config::Uint32(0)},
     });
 
     evse_max_charging_current = Config::Object ({
@@ -404,7 +406,7 @@ ENplus::ENplus()
                 Config::Int16(0),
                 Config::Int16(0),
                 Config::Int16(0),
-            }, Config::Int16(0), 14, 14, Config::type_id<Config::ConfInt>())},
+            }, new Config{Config::Int16(0)}, 14, 14, Config::type_id<Config::ConfInt>())},
     });
 }
 
@@ -580,7 +582,12 @@ void ENplus::setup()
             evse_state.get("error_state")->asUint(),
             evse_state.get("charge_release")->asUint(),
             evse_state.get("uptime")->asUint(),
-            evse_state.get("allowed_charging_current")->asUint()
+            evse_low_level_state.get("charging_time")->asUint(),
+            evse_state.get("allowed_charging_current")->asUint(),
+            min(evse_max_charging_current.get("max_current_configured")->asUint(),
+                min(evse_max_charging_current.get("max_current_incoming_cable")->asUint(),
+                    evse_max_charging_current.get("max_current_outgoing_cable")->asUint())),
+            evse_managed.get("managed")->asBool()
         );
     }, 1000, 1000);
 
@@ -911,12 +918,12 @@ void ENplus::loop()
                     evse_hardware_configuration.get("FirmwareVersion")->asString().c_str());
                 if(!evse_hardware_configuration.get("initialized")->asBool()) {
                     initialized =
-                        evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
+                        (evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0     ||
+                        evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AE-25") == 0)     &&
                         evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258, 1.1.525, 1.1.538
                         evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 538;    // higest known working version (we assume earlier versions work as well)
                     evse_hardware_configuration.get("initialized")->updateBool(initialized);
                     evse_hardware_configuration.get("OldFirmware")->updateBool(
-                        evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0      &&
                         evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && 
                         evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() < 538   //TODO 1.1.258, 1.1.525, 1.1.538 lowest known working version (we assume later versions work as well)
                     );

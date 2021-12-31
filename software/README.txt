@@ -6,3 +6,6 @@ Build instructions
 - The firmwares are organized as platformio environments: "platformio run -e warp" builds the WARP1 firmware, "platformio run -e warp2" the one for WARP2.
 - The built firmwares can be found in build/ folder.
 - You can also run "platformio run -e warp -t upload -t monitor" to build and upload the firmware to a connected ESP32 and start the serial monitor
+
+change to the "other hardware" branch: git checkout warp_on_other_hardware
+get the Time lib: cd software/modules/backend/enplus ; git clone https://github.com/PaulStoffregen/Time.git
