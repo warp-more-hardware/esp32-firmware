@@ -366,7 +366,7 @@ ENplus::ENplus()
         {"auto_start_charging", Config::Bool(true)}
     });
     evse_current_limit = Config::Object({
-        {"current", Config::Uint(32000, 6000, 32000)}
+        {"current", Config::Uint(32000, 0000, 32000)}
     });
 
     evse_stop_charging = Config::Null();
