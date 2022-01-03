@@ -35,7 +35,6 @@
 extern EventLog logger;
 
 extern TaskScheduler task_scheduler;
-extern TF_HAL hal;
 extern WebServer server;
 
 extern API api;
@@ -686,9 +685,6 @@ void ENplus::set_managed_current(uint16_t current) {
 
 void ENplus::register_urls()
 {
-    if (!evse_found)
-        return;
-
     api.addPersistentConfig("evse/config", &evse_config, {}, 1000);
 
     api.addState("evse/state", &evse_state, {}, 1000);
@@ -927,10 +923,8 @@ void ENplus::loop()
                         evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && 
                         evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() < 538   //TODO 1.1.258, 1.1.525, 1.1.538 lowest known working version (we assume later versions work as well)
                     );
-                    register_urls(); //TODO 
                     if(initialized) {
                          logger.printfln("EN+ GD EVSE initialized.");
-                         //register_urls();
                     } else {
                          logger.printfln("EN+ GD EVSE Firmware Version or Hardware is not supported.");
                     }
