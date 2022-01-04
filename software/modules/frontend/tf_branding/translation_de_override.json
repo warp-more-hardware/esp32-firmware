@@ -1,4 +1,9 @@
 {
+    "authentication": {
+        "content": {
+            "confirm_content": "Soll die Anmeldung wirklich aktiviert werden? Falls das Passwort vergessen wird, muss der Brick auf den Werkszustand zurückgesetzt werden. <a href=\"{{{manual_url}}}\">Siehe Betriebsanleitung für Details.</a>"
+        }
+    },
     "ethernet": {
         "content": {
             "enable_desc": "Wenn aktiviert, verbindet sich der Brick beim Start oder wenn ein Kabel eingesteckt wird, automatisch."
@@ -21,7 +26,7 @@
     },
     "mqtt": {
         "content": {
-            "enable_mqtt_desc": "Hierdurch kann der Brick über den konfigurierten MQTT-Broker kontrolliert werden. <a href=\"https://warp-charger.com/api.html\">MQTT-API-Dokumentation</a>"
+            "enable_mqtt_desc": "Hierdurch kann der Brick über den konfigurierten MQTT-Broker kontrolliert werden. <a href=\"{{{apidoc_url}}}\">MQTT-API-Dokumentation</a>"
         }
     },
     "util": {

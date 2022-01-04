@@ -1,4 +1,9 @@
 {
+    "authentication": {
+        "content": {
+            "confirm_content": "Are you sure you want to enable authentication? If you forget or lose the password, the charger has to be reset to factory defaults. <a href=\"{{{manual_url}}}\">See manual for details.</a>"
+        }
+    },
     "event_log": {
         "content": {
             "debug_report_desc_muted": "A complete report of all status information of this charger except passwords"
@@ -16,7 +21,7 @@
     },
     "mqtt": {
         "content": {
-            "enable_mqtt_desc": "This allows controlling the charger over the configured MQTT broker. <a href=\"https://warp-charger.com/api.html\">MQTT API documentation (german only)</a>"
+            "enable_mqtt_desc": "This allows controlling the charger over the configured MQTT broker. <a href=\"{{{apidoc_url}}}\">MQTT API documentation (German only)</a>"
         }
     },
     "util": {

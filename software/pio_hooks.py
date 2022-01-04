@@ -224,6 +224,8 @@ def main():
     name = env.GetProjectOption("name")
     host_prefix = env.GetProjectOption("host_prefix")
     display_name = env.GetProjectOption("display_name")
+    manual_url = env.GetProjectOption("manual_url")
+    apidoc_url = env.GetProjectOption("apidoc_url")
     require_fw_info = env.GetProjectOption("require_fw_info")
     version = get_changelog_version(name)
 
@@ -283,6 +285,8 @@ def main():
     content_entries = []
     status_entries = []
     main_ts_entries = []
+    pre_scss_entries = []
+    post_scss_entries = []
     frontend_modules = [FlavoredName(x).get() for x in env.GetProjectOption("frontend_modules").splitlines()]
     translation = collect_translation('web')
 
@@ -306,15 +310,6 @@ def main():
 
                 shutil.copy(img_source_path, img_target_path)
 
-        if os.path.exists(os.path.join(mod_path, 'scss')):
-            for scss_name in os.listdir(os.path.join(mod_path, 'scss')):
-                scss_source_path = os.path.join(mod_path, 'scss', scss_name)
-                scss_target_path = os.path.join('web', 'src', 'scss', 'modules', scss_name)
-
-                assert not os.path.exists(scss_target_path), 'scss collision ' + scss_source_path + ' -> ' + scss_target_path
-
-                shutil.copy(scss_source_path, scss_target_path)
-
         if os.path.exists(os.path.join(mod_path, 'navbar.html')):
             with open(os.path.join(mod_path, 'navbar.html')) as f:
                 navbar_entries.append(f.read())
@@ -331,6 +326,11 @@ def main():
             main_ts_entries.append(frontend_module)
             shutil.copy(os.path.join(mod_path, 'main.ts'), os.path.join("web", "src", "ts", "modules", frontend_module.under + ".ts"))
 
+        for phase, scss_entries in [('pre', pre_scss_entries), ('post', post_scss_entries)]:
+            if os.path.exists(os.path.join(mod_path, phase + '.scss')):
+                scss_entries.append(frontend_module)
+                shutil.copy(os.path.join(mod_path, phase + '.scss'), os.path.join("web", "src", "scss", "modules", phase + "_" + frontend_module.under + ".scss"))
+
         update_translation(translation, collect_translation(mod_path))
         update_translation(translation, collect_translation(mod_path, override=True), override=True)
 
@@ -346,6 +346,8 @@ def main():
             data = json.dumps(translation[language], indent=4, ensure_ascii=False)
             data = data.replace('{{{empty_text}}}', '\u200b') # Zero Width Space to work around a bug in the translation library: empty strings are replaced with "null"
             data = data.replace('{{{display_name}}}', display_name)
+            data = data.replace('{{{manual_url}}}', manual_url)
+            data = data.replace('{{{apidoc_url}}}', apidoc_url)
 
             f.write('export const translation_{0}: {{[index: string]:any}} = '.format(language))
             f.write(data + ';\n')
@@ -366,6 +368,11 @@ def main():
         '{{{modules}}}': ', '.join([x.under for x in main_ts_entries]),
         '{{{translation_imports}}}': '\n'.join(['import {{translation_{0}}} from "./ts/translation_{0}";'.format(x) for x in sorted(translation)]),
         '{{{translation_adds}}}': '\n'.join(["    translator.add('{0}', translation_{0});".format(x) for x in sorted(translation)])
+    })
+
+    specialize_template(os.path.join("web", "main.scss.template"), os.path.join("web", "src", "main.scss"), {
+        '{{{module_pre_imports}}}': '\n'.join(['@import "scss/modules/pre_{0}";'.format(x.under) for x in pre_scss_entries]),
+        '{{{module_post_imports}}}': '\n'.join(['@import "scss/modules/post_{0}";'.format(x.under) for x in post_scss_entries])
     })
 
     # Check translation completeness
