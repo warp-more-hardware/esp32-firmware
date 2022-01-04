@@ -76,21 +76,21 @@ private:
     int bs_evse_persist_config();
     int bs_evse_get_state(uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime);
 
-    Config evse_config;
-    Config evse_state;
-    Config evse_hardware_configuration;
-    Config evse_low_level_state;
-    Config evse_max_charging_current;
-    Config evse_auto_start_charging;
-    Config evse_auto_start_charging_update;
-    Config evse_current_limit;
-    Config evse_stop_charging;
-    Config evse_start_charging;
-    Config evse_managed;
-    Config evse_managed_update;
-    Config evse_managed_current;
-    Config evse_user_calibration;
-    Config evse_privcomm;
+    ConfigRoot evse_config;
+    ConfigRoot evse_state;
+    ConfigRoot evse_hardware_configuration;
+    ConfigRoot evse_low_level_state;
+    ConfigRoot evse_max_charging_current;
+    ConfigRoot evse_auto_start_charging;
+    ConfigRoot evse_auto_start_charging_update;
+    ConfigRoot evse_current_limit;
+    ConfigRoot evse_stop_charging;
+    ConfigRoot evse_start_charging;
+    ConfigRoot evse_managed;
+    ConfigRoot evse_managed_update;
+    ConfigRoot evse_managed_current;
+    ConfigRoot evse_user_calibration;
+    ConfigRoot evse_privcomm;
     uint32_t last_current_update = 0;
     bool shutdown_logged = false;
 

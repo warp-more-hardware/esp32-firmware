@@ -288,13 +288,13 @@ void ENplus::sendTimeLong() {
 
 ENplus::ENplus()
 {
-    evse_config = Config::Object({
+    evse_config = ConfigRoot{Config::Object({
         {"auto_start_charging", Config::Bool(true)},
         {"managed", Config::Bool(true)},
         {"max_current_configured", Config::Uint16(0)}
-    });
+    })};
 
-    evse_state = Config::Object({
+    evse_state = ConfigRoot{Config::Object({
         {"iec61851_state", Config::Uint8(0)},
         {"vehicle_state", Config::Uint8(0)},
         {"GD_state", Config::Uint8(0)},
@@ -307,25 +307,25 @@ ENplus::ENplus()
         {"time_since_state_change", Config::Uint32(0)},
         {"last_state_change", Config::Uint32(0)},
         {"uptime", Config::Uint32(0)}
-    });
+    })};
 
-    evse_privcomm = Config::Object({
-        {"RX", Config::Str("",1000)},
-        {"TX", Config::Str("",1000)}
-    });
+    evse_privcomm = ConfigRoot{Config::Object({
+        {"RX", Config::Str("", 0, 1000)},
+        {"TX", Config::Str("", 0, 1000)}
+    })};
 
-    evse_hardware_configuration = Config::Object({
-        {"Hardware", Config::Str("",20)},
-        {"FirmwareVersion", Config::Str("",20)},
-        {"SerialNumber", Config::Str("",20)},
+    evse_hardware_configuration = ConfigRoot{Config::Object({
+        {"Hardware", Config::Str("", 0, 20)},
+        {"FirmwareVersion", Config::Str("", 0, 20)},
+        {"SerialNumber", Config::Str("", 0, 20)},
         {"evse_found", Config::Bool(false)},
         {"initialized", Config::Bool(false)},
         {"OldFirmware", Config::Bool(false)},
         {"jumper_configuration", Config::Uint8(3)}, // 3 = 16 Ampere = 11KW for the EN+ wallbox
         {"has_lock_switch", Config::Bool(false)}    // no key lock switch
-    });
+    })};
 
-    evse_low_level_state = Config::Object ({
+    evse_low_level_state = ConfigRoot{Config::Object ({
         {"low_level_mode_enabled", Config::Bool(false)},
         {"led_state", Config::Uint8(0)},
         {"cp_pwm_duty_cycle", Config::Uint16(0)},
@@ -348,43 +348,43 @@ ENplus::ENplus()
         {"gpio", Config::Array({Config::Bool(false),Config::Bool(false),Config::Bool(false),Config::Bool(false), Config::Bool(false)}, new Config{Config::Bool(false)}, 5, 5, Config::type_id<Config::ConfBool>())},
         {"hardware_version", Config::Uint8(0)},
         {"charging_time", Config::Uint32(0)},
-    });
+    })};
 
-    evse_max_charging_current = Config::Object ({
+    evse_max_charging_current = ConfigRoot{Config::Object ({
         {"max_current_configured", Config::Uint16(0)},
         {"max_current_incoming_cable", Config::Uint16(16000)},
         {"max_current_outgoing_cable", Config::Uint16(16000)},
         {"max_current_managed", Config::Uint16(0)},
-    });
+    })};
 
-    evse_auto_start_charging = Config::Object({
+    evse_auto_start_charging = ConfigRoot{Config::Object({
         {"auto_start_charging", Config::Bool(true)}
-    });
+    })};
 
-    evse_auto_start_charging_update = Config::Object({
+    evse_auto_start_charging_update = ConfigRoot{Config::Object({
         {"auto_start_charging", Config::Bool(true)}
-    });
-    evse_current_limit = Config::Object({
+    })};
+    evse_current_limit = ConfigRoot{Config::Object({
         {"current", Config::Uint(32000, 0000, 32000)}
-    });
+    })};
 
-    evse_stop_charging = Config::Null();
-    evse_start_charging = Config::Null();
+    evse_stop_charging = ConfigRoot{Config::Null()};
+    evse_start_charging = ConfigRoot{Config::Null()};
 
-    evse_managed_current = Config::Object ({
+    evse_managed_current = ConfigRoot{Config::Object ({
         {"current", Config::Uint16(0)}
-    });
+    })};
 
-    evse_managed = Config::Object({
+    evse_managed = ConfigRoot{Config::Object({
         {"managed", Config::Bool(false)}
-    });
+    })};
 
-    evse_managed_update = Config::Object({
+    evse_managed_update = ConfigRoot{Config::Object({
         {"managed", Config::Bool(false)},
         {"password", Config::Uint32(0)}
-    });
+    })};
 
-    evse_user_calibration = Config::Object({
+    evse_user_calibration = ConfigRoot{Config::Object({
         {"user_calibration_active", Config::Bool(false)},
         {"voltage_diff", Config::Int16(0)},
         {"voltage_mul", Config::Int16(0)},
@@ -406,7 +406,7 @@ ENplus::ENplus()
                 Config::Int16(0),
                 Config::Int16(0),
             }, new Config{Config::Int16(0)}, 14, 14, Config::type_id<Config::ConfInt>())},
-    });
+    })};
 }
 
 int ENplus::bs_evse_start_charging() {
