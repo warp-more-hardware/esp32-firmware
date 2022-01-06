@@ -9,3 +9,4 @@ Build instructions
 
 change to the "other hardware" branch: git checkout warp_on_other_hardware
 get the Time lib: cd software/modules/backend/enplus ; git clone https://github.com/PaulStoffregen/Time.git
+maybe you have to install some npm modules: npm install cheerio ; npm install postcss
