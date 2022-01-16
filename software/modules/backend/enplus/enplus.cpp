@@ -20,6 +20,8 @@
 
 #include "enplus.h"
 #include "enplus_firmware.h"
+#include "enplus_firmware.1.1.212.h"
+#include "enplus_firmware.1.1.538.h"
 
 #include "bindings/errors.h"
 
@@ -62,7 +64,6 @@ byte Init6[] = {0xAC, 0x11, 0x0D, 0x04, 0x00, 0xB8, 0x0B, 0x00, 0x00};
 byte Init7[] = {0xAA, 0x18, 0x3F, 0x04, 0x00, 0x1E, 0x00, 0x00, 0x00};
 byte Init8[] = {0xAA, 0x18, 0x25, 0x0E, 0x00, 0x05, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02};
 byte Init9[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x7B, 0x89};
-
 byte Init10[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x3B, 0x9C}; // is Init10 the same as Init12?
 
 // ctrl_cmd set ack done, type:0
@@ -777,10 +778,30 @@ void ENplus::register_urls()
     });
 
     server.on("/flash_verify", HTTP_POST, [this](WebServerRequest request){
+        if (update_aborted)
+            return;
+        this->firmware_update_running = false;
+        if (!firmware_update_allowed) {
+            request.send(423, "text/plain", "vehicle connected");
+            return;
+        }
+        /* request.send(Update.hasError() ? 400: 200, "text/plain", Update.hasError() ? Update.errorString() : "Update OK"); */
         request.send(200, "text/plain", "Update OK");
     },[this](WebServerRequest request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-        return handle_update_chunk(4, request, index, data, len, final, request.contentLength());
+        if (!firmware_update_allowed) {
+            request.send(423, "text/plain", "vehicle connected");
+            this->firmware_update_running = false;
+            return false;
+        }
+        this->firmware_update_running = true;
+        return handle_update_chunk2(3, request, index, data, len, final, request.contentLength());
     });
+
+    /* server.on("/flash_verify", HTTP_POST, [this](WebServerRequest request){ */
+    /*     request.send(200, "text/plain", "Update OK"); */
+    /* },[this](WebServerRequest request, String filename, size_t index, uint8_t *data, size_t len, bool final){ */
+    /*     return handle_update_chunk(4, request, index, data, len, final, request.contentLength()); */
+    /* }); */
 
 #ifdef MODULE_WS_AVAILABLE
     server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
@@ -1311,6 +1332,29 @@ void ENplus::setup_evse()
     // TODO end: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
 
 
+// V3.2.589 init sequence
+ /* W (1970-01-01 00:00:00) [PRIV_COMM, 1875]: Tx(cmd_AC len:15) :  FA 03 00 00  AC  01   05 00    11 0B 01 00 00 CA D3 */
+ /* W (1970-01-01 00:00:00) [PRIV_COMM, 1875]: Tx(cmd_AC len:15) :  FA 03 00 00  AC  02   05 00    11 09 01 00 01 4A BE */
+ /* W (1970-01-01 00:00:00) [PRIV_COMM, 1875]: Tx(cmd_AC len:15) :  FA 03 00 00  AC  03   05 00    11 0A 01 00 00 4A F6 */
+ /* W (1970-01-01 00:00:00) [PRIV_COMM, 1875]: Tx(cmd_AC len:15) :  FA 03 00 00  AC  04   05 00    11 0C 01 00 00 0B 98 */
+ /* W (1970-01-01 00:00:00) [PRIV_COMM, 1875]: Tx(cmd_AA len:18) :  FA 03 00 00  AA  05   08 00    18 3E 04 00 00 00 00 00 54 F0 */
+ /* W (1970-01-01 00:00:00) [PRIV_COMM, 1875]: Tx(cmd_AC len:18) :  FA 03 00 00  AC  06   08 00    11 0D 04 00 B8 0B 00 00 C5 B7 */
+ /* W (1970-01-01 00:00:01) [PRIV_COMM, 1875]: Tx(cmd_AA len:18) :  FA 03 00 00  AA  07   08 00    18 3F 04 00 1E 00 00 00 49 A0 */
+ /* W (1970-01-01 00:00:01) [PRIV_COMM, 1875]: Tx(cmd_AA len:28) :  FA 03 00 00  AA  08   12 00    18 25 0E 00 05 00 00 00 05 00 00 00 00 03 00 00 00 02 EC 31 */
+ /* W (1970-01-01 00:00:01) [PRIV_COMM, 1875]: Tx(cmd_AA len:15) :  FA 03 00 00  AA  09   05 00    18 12 01 00 03 7B 89 */
+ /* W (1970-01-01 00:00:03) [PRIV_COMM, 1875]: Tx(cmd_AA len:14) :  FA 03 00 00  AA  0A   04 00    18 2A 00 00 52 B6 */
+
+    sendCommand(Init1,  sizeof(Init1));
+    sendCommand(Init2,  sizeof(Init2));
+    sendCommand(Init3,  sizeof(Init3));
+    sendCommand(Init4,  sizeof(Init4));
+    sendCommand(Init5,  sizeof(Init5));
+    sendCommand(Init6,  sizeof(Init6));
+    sendCommand(Init7,  sizeof(Init7));
+    sendCommand(Init8,  sizeof(Init8));
+    sendCommand(Init9,  sizeof(Init9));
+    sendCommand(Init10, sizeof(Init10));
+
 //W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 08 05 00 18 12 01 00 03 BA 45
 //W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 08 05 00 14 12 01 00 00 12 42
 //I (2021-04-11 18:36:27) [PRIV_COMM, 51]: ctrl_cmd set ack done, type:0
@@ -1687,7 +1731,78 @@ bool ENplus::handle_update_chunk1(int command, WebServerRequest request, size_t 
                 return true;
 
             // copy data
-            memcpy(FlashVerify+11, gd_firmware + chunk_offset, maxlength);
+            memcpy(FlashVerify+11, gd_firmware_1_1_212 + chunk_offset, maxlength);
+
+            MAXLENGTH = maxlength;
+            sendCommand(FlashVerify, maxlength+11); // next chunk (11 bytes header) 
+            flash_seq = PrivCommTxBuffer[5];
+            last_flash = millis();
+            ready_for_next_chunk = false;
+
+            chunk_offset = chunk_offset + maxlength;
+            length = length - maxlength;
+        } // iterate through big chunks
+    } // first chunk
+
+    if(final) {
+        this->firmware_update_running = false;
+        logger.printfln("   scheduling GD chip app mode in 3s");
+        // after last chunk, get out of flash mode
+        task_scheduler.scheduleOnce("factory_reset", [this](){
+            logger.printfln("   getting the GD chip back into app mode");
+            sendCommand(EnterAppMode, sizeof(EnterAppMode));
+        }, 3000);
+    }
+
+    return true;
+}
+
+bool ENplus::handle_update_chunk2(int command, WebServerRequest request, size_t chunk_index, uint8_t *data, size_t chunk_length, bool final, size_t complete_length) {
+
+    if(chunk_index == 0) {
+ /* [PRIV_COMM, 1875]: Tx(cmd_AB len:820) :  FA 03 00 00 AB 18 2A 03 00 00 00 08 00 00 03 00 90 01 68 16 00 20 1D 25 00 08 3B 0E 00 08 3D 0E 00 08 41 0E 00 08 45 0E 00 08 49 0E 00 08 00 00 00 00 00 00 */
+        //sendCommand(EnterBootMode, sizeof(EnterBootMode));
+        logger.printfln("EVSE RemoteUpdate, reset into boot mode");
+        RemoteUpdate[7] = 5; // Reset into boot mode
+        sendCommand(RemoteUpdate, sizeof(RemoteUpdate));
+        /* logger.printfln("Failed to start update: %s", Update.errorString()); */
+        /* request.send(400, "text/plain", Update.errorString()); */
+        /* update_aborted = true; */
+        /* return true; */
+
+        size_t chunk_offset = 0 + 0x8000;
+        size_t length = gd_firmware_len - 0x8000;
+
+        FlashVerify[7] = command; // flash write (3=write, 4=verify)
+
+        while (length > 0) {
+            while (!ready_for_next_chunk) {
+                loop(); //TODO make this more elegant
+            }
+
+            //calculate maxlength
+            //size_t maxlength = 800;               // 800 byte chunks
+            size_t maxlength = 512;               // 512 byte chunks
+            //if (length < 800) maxlength = length; // reminder
+            if (length < 512) maxlength = length; // reminder
+            FlashVerify[9]  = (maxlength/2 & 0x000000FF); // number of words to process (therefore divided by 2)
+            FlashVerify[10] = (maxlength/2 & 0x0000FF00) >> 8;
+
+            //calculate address
+            uint32_t gd_address = chunk_index + chunk_offset + 0x8000000; // 0x8000000 is the start address for the GD chip
+            FlashVerify[5] = (gd_address & 0x000000FF);
+            FlashVerify[6] = (gd_address & 0x0000FF00) >> 8;
+            FlashVerify[3] = (gd_address & 0x00FF0000) >> 16;
+            FlashVerify[4] = (gd_address & 0xFF000000) >> 24;
+
+            //logger.printfln("Processing update chunk with: chunk_index %.6X (%d), gd(%.2x %.2x %.2x %.2x) chunk_l %d, chunk_offset %d, complete_l %d, final: %s", chunk_index, chunk_index, FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], chunk_length, chunk_offset, complete_length, final?"true":"false");
+            logger.printfln("gd(%.2x %.2x %.2x %.2x) binhex(%.2x%.2x) chunk_offset %d, l %d, ml %d, ll %d, final: %s", FlashVerify[3],FlashVerify[4],FlashVerify[5],FlashVerify[6], FlashVerify[6],FlashVerify[5], chunk_offset, length, maxlength, complete_length, final?"true":"false");
+
+            if (update_aborted)
+                return true;
+
+            // copy data
+            memcpy(FlashVerify+11, gd_firmware_1_1_538 + chunk_offset, maxlength);
 
             MAXLENGTH = maxlength;
             sendCommand(FlashVerify, maxlength+11); // next chunk (11 bytes header) 
