@@ -332,7 +332,7 @@ ENplus::ENplus()
         {"SerialNumber", Config::Str("", 0, 20)},
         {"evse_found", Config::Bool(false)},
         {"initialized", Config::Bool(false)},
-        {"OldFirmware", Config::Bool(false)},
+        {"GDFirmwareVersion", Config::Uint16(0)},
         {"jumper_configuration", Config::Uint8(3)}, // 3 = 16 Ampere = 11KW for the EN+ wallbox
         {"has_lock_switch", Config::Bool(false)}    // no key lock switch
     })};
@@ -426,7 +426,7 @@ int ENplus::bs_evse_start_charging() {
     logger.printfln("EVSE start charging with max %d Ampere", allowed_charging_current);
 
     time_t t=now();     // get current time
-    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+    if(evse_hardware_configuration.get("GDFirmwareVersion")->asUint() < 212) {
         OldChargingSettings[2] = year(t) -2000;
         OldChargingSettings[3] = month(t);
         OldChargingSettings[4] = day(t);
@@ -435,7 +435,6 @@ int ENplus::bs_evse_start_charging() {
         OldChargingSettings[7] = second(t);
         OldChargingSettings[17] = allowed_charging_current;
         sendCommand(OldChargingSettings, sizeof(OldChargingSettings));
-        sendCommand(OldStartCharging, sizeof(OldStartCharging));
     } else {
         //ChargingSettings[56] = year(t) -2000;
         ChargingSettings[57] = month(t);
@@ -446,6 +445,10 @@ int ENplus::bs_evse_start_charging() {
         ChargingSettings[70] = allowed_charging_current;
         //    ChargingSettings[74] = 1;      // Phases
         sendCommand(ChargingSettings, sizeof(ChargingSettings));
+    }
+    if(evse_hardware_configuration.get("GDFirmwareVersion")->asUint() <= 212) {
+        sendCommand(OldStartCharging, sizeof(OldStartCharging));
+    } else {
         sendCommand(StartCharging, sizeof(StartCharging));
     }
     /* ChargingSettings[56] = year(t) -2000; */
@@ -474,7 +477,7 @@ int ENplus::bs_evse_start_charging() {
 
 int ENplus::bs_evse_stop_charging() {
     logger.printfln("EVSE stop charging");
-    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+    if(evse_hardware_configuration.get("GDFirmwareVersion")->asUint() <= 212) {
         sendCommand(OldStopCharging, sizeof(OldStopCharging));
     } else {
         sendCommand(StopCharging, sizeof(StopCharging));
@@ -516,7 +519,7 @@ int ENplus::bs_evse_set_max_charging_current(uint16_t max_current) {
     logger.printfln("EVSE calculated allowed charging limit is %d Ampere", allowed_charging_current);
 
     time_t t=now();     // get current time
-    if(evse_hardware_configuration.get("OldFirmware")->asBool()) {
+    if(evse_hardware_configuration.get("GDFirmwareVersion")->asUint() < 212) {
         OldChargingSettings[2] = year(t) -2000;
         OldChargingSettings[3] = month(t);
         OldChargingSettings[4] = day(t);
@@ -974,10 +977,7 @@ void ENplus::loop()
                         evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && // known working: 1.1.27, 1.1.212, 1.1.258, 1.1.525, 1.1.538
                         evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 538;    // higest known working version (we assume earlier versions work as well)
                     evse_hardware_configuration.get("initialized")->updateBool(initialized);
-                    evse_hardware_configuration.get("OldFirmware")->updateBool(
-                        evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)        && 
-                        evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() < 538   //TODO 1.1.258, 1.1.525, 1.1.538 lowest known working version (we assume later versions work as well)
-                    );
+                    evse_hardware_configuration.get("GDFirmwareVersion")->updateUint(evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt());
                     if(initialized) {
                          logger.printfln("EN+ GD EVSE initialized.");
                     } else {
