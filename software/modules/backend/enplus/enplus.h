@@ -58,8 +58,9 @@ private:
     void Serial2write(byte *data, int size);
     void PrivCommSend(byte cmd, uint16_t datasize, byte *data);
     void PrivCommAck(byte cmd, byte *data);
-    void sendCommand(byte *data, int datasize);
-    void sendTimeLong (void);
+    void sendCommand(byte *data, int datasize, byte sendSequenceNumber);
+    void sendTime(byte cmd, byte action, byte len, byte sendSequenceNumber);
+    void sendTimeLong (byte sendSequenceNumber);
     void update_evseStatus(uint8_t evseStatus);
 
     #define PRIV_COMM_BUFFER_MAX_SIZE 1024
@@ -75,6 +76,11 @@ private:
     int bs_evse_set_max_charging_current(uint16_t max_current);
     int bs_evse_persist_config();
     int bs_evse_get_state(uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime);
+
+    void sendChargingLimit1(time_t t, uint8_t currentLimit, byte sendSequenceNumber);
+    void sendChargingLimit2(time_t t, uint8_t currentLimit, byte sendSequenceNumber);
+    void sendChargingLimit3(time_t t, uint8_t currentLimit, byte sendSequenceNumber);
+
 
     ConfigRoot evse_config;
     ConfigRoot evse_state;
