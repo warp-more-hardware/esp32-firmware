@@ -98,13 +98,21 @@ byte Init15[] = {0xAA, 0x18, 0x09, 0x01, 0x00, 0x00};
 //I (2021-04-11 18:36:27) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 3150080
 
 //privCommCmdA7StartTransAck GD Firmware before 1.1.212?
-byte StartChargingA7[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte StartChargingA6[] = {0xA6, '1', '9', '8', '0', '0', '0', '2', '0', '4', '9', '0', '_', 'A', 'P', 'P', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
+//byte StartChargingA7[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte StartChargingA7[] =   {0xA7, 'W',  'A',  'R',  'P',  ' ',  'C',  'h',  'a',  'r',  'g',  'e',  'r',  ' ',  'f',  'o',  'r',  ' ',  'E',  'N',  '+',  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//byte StartChargingA6[] = {0xA6, '1', '9', '8', '0', '0', '0', '2', '0', '4', '9', '0', '_', 'A', 'P', 'P',  0,   0,   0,   0,   0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
+byte StartChargingA6[] =   {0xA6, 'W', 'A', 'R', 'P', ' ', 'C', 'h', 'a', 'r', 'g', 'e', 'r', ' ', 'f', 'o', 'r', ' ', 'E', 'N', '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
 //GD1.1.538 "RemoteStartTransaction",{"connectorId":1,"idTag":"19800020490_APP"}
 //byte StartChargingA6[] = {0xA6, '1', '9', '8', '0', '0', '0', '2', '0', '4', '9', '0', '_', 'A', 'P', 'P', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
-byte StopChargingA7[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
+
+
+//byte StopChargingA7[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
+byte StopChargingA7[] =   {0xA7, 'W',  'A',  'R',  'P',  ' ',  'C',  'h',  'a',  'r',  'g',  'e',  'r',  ' ',  'f',  'o',  'r',  ' ',  'E',  'N',  '+',  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
 byte StopChargingA6[]  = {0xA6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x37, 0x38, 0x35, 0x34, 0x31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0, 0, 0, 0, 0, 0, 0, 0};
-//GD1.1.538 W (2022-01-10 20:32:21) [PRIV_COMM, 1875]: Tx(cmd_A6 len:83) :  FA 03, 0, 0 A6 44 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 31 34 34 37 34 37, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0   , 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 40, 0, 0, 0, 0, 0, 0, 0, 0 71 48
+//GD1.1.538 W (2022-01-10 20:32:21) [PRIV_COMM, 1875]: Tx(cmd_A6 len:83) :  FA 03, 0, 0 A6 44 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 31 34 34 37 34 37, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 40, 0, 0, 0, 0, 0, 0, 0, 0 71 48
+
+//byte TransactionAck[] = {0xA9, '1', '9', '8', '0', '0', '0', '2', '0', '4', '9', '0', '_', 'A', 'P', 'P', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte TransactionAck[] = {0xA9, 'W', 'A', 'R', 'P', ' ', 'C', 'h', 'a', 'r', 'g', 'e', 'r', ' ', 'f', 'o', 'r', ' ', 'E', 'N', '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 //privCommCmdAFSmartCurrCtl
 byte ChargingLimit3[] = {0xAD, 1, 0x91, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 'Y', 'm', 'd', 'h', 'm', 's', 00, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 'A', 0, 0, 0, 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -168,7 +176,7 @@ void send_http (String jmessage) {
         httpClient.begin(JSON_DECODER);
         httpClient.addHeader("Content-Type", "application/json");
 
-        int httpResponseCode = httpClient.POST("{\"device\":\"" + String((uint32_t)ESP.getEfuseMac(), HEX) + "\"" + jmessage);  // prepend chip ID and send data
+        int httpResponseCode = httpClient.POST("{\"version\":1,\"device\":\"" + String((uint32_t)ESP.getEfuseMac(), HEX) + "\"" + jmessage);  // prepend chip ID and send data
         logger.printfln("JSON message sent. Response code: %d", httpResponseCode);
         //logger.printfln("Response: %s", http.getString().c_str());  // print response
         httpClient.end();  // disconnect
@@ -266,10 +274,10 @@ void ENplus::sendCommand(byte *data, int datasize, byte sendSequenceNumber) {
     switch (PrivCommTxBuffer[4]) {
         case 0xA3: cmdText = "- Status data ack"; break;
         case 0xA4: cmdText = "- Heartbeat ack"; break;
-        case 0xA6: if (PrivCommTxBuffer[72] == 0x40) cmdText = "- Stop charging request"; else cmdText = "- Start charging request"; break;  // confirmed
-        case 0xA7: if (PrivCommTxBuffer[40] == 0x10) cmdText = "- Stop charging command"; else cmdText = "- Start charging command"; break;  // ?
+        case 0xA6: if (PrivCommTxBuffer[72] == 0x40) cmdText = "- Stop charging request"; else cmdText = "- Start charging request"; break;
+        case 0xA7: if (PrivCommTxBuffer[40] == 0x10) cmdText = "- Stop charging command"; else cmdText = "- Start charging command"; break;
         case 0xA8: cmdText = "- Power data ack"; break;
-        case 0xA9: cmdText = "- Start/stop data ack"; break;
+        case 0xA9: cmdText = "- Transaction data ack"; break;
         case 0xAF: cmdText = "- Limit1: " + String(PrivCommTxBuffer[24]) + " Ampere"; break;
         case 0xAD: cmdText = "- Limit2: " + String(PrivCommTxBuffer[72]) + " Ampere"; break;
     }
@@ -521,12 +529,12 @@ int ENplus::bs_evse_start_charging() {
             sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
             sendCommand(StartChargingA7, sizeof(StartChargingA7), sendSequenceNumber++);
             break;
+        default:
+            logger.printfln("Unknown firmware version. Trying latest commands.");
         case 538:
         case 1435:
             sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);
             break;
-        default:
-            logger.printfln("Unknown firmware version.");
     }
     return 0;
 }
@@ -538,12 +546,12 @@ int ENplus::bs_evse_stop_charging() {
         case 258:
             sendCommand(StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++);
             break;
+        default:
+            logger.printfln("Unknown firmware version. Trying latest commands.");
         case 538:
         case 1435:
             sendCommand(StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++);
             break;
-        default:
-            logger.printfln("Unknown firmware version.");
     }
     return 0;
 }
@@ -587,13 +595,13 @@ int ENplus::bs_evse_set_max_charging_current(uint16_t max_current) {
         case 258:
             sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
             break;
+        default:
+            logger.printfln("Unknown firmware version. Trying latest commands.");
         case 538:
         case 1435:
             sendChargingLimit2(now(), allowed_charging_current, sendSequenceNumber++);
             //sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
             break;
-        default:
-            logger.printfln("Unknown firmware version.");
     }
     return 0;
 }
@@ -994,17 +1002,17 @@ void ENplus::loop()
                             String cmdText = "";
                             switch (PrivCommRxBuffer[4]) {
                                 case 0x02: cmdText = "- Version data"; break;
-                                case 0x03: cmdText = "- Status data "+String(PrivCommRxBuffer[9])+": "+String(evse_status_text[PrivCommRxBuffer[9]]); break;
+                                case 0x03: cmdText = "- Status data: "+String(PrivCommRxBuffer[9])+" - "+String(evse_status_text[PrivCommRxBuffer[9]]); break;
                                 case 0x04: cmdText = "- Heartbeat request"; break;
                                 case 0x05: cmdText = "- RFID data"; break;
-                                case 0x06: if (PrivCommRxBuffer[72] == 0x40) cmdText = "- Stop charging request ack"; else cmdText = "- Start charging request ack"; break;  // ?
-                                case 0x07: if (PrivCommRxBuffer[72] == 0x10) cmdText = "- Stop charging approval"; else cmdText = "- Start charging approval"; break;  // ?
+                                case 0x06: if (PrivCommRxBuffer[72] == 0x40) cmdText = "- Stop charging request ack"; else cmdText = "- Start charging request ack"; break;
+                                case 0x07: if (PrivCommRxBuffer[72] == 0x10) cmdText = "- Stop charging approval"; else cmdText = "- Start charging approval"; break;
                                 case 0x08: cmdText = "- Power data: "
                                                        +String(float(PrivCommRxBuffer[106]+256*PrivCommRxBuffer[107])/10,1)+"A, "
                                                        +String(PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97])+"W, "
                                                        +String(PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89])+"Wh";
                                            break;
-                                case 0x09: cmdText = "- Start/stop data"; break;
+                                case 0x09: cmdText = "- Transaction data"; break;
                                 case 0x0E: cmdText = "- Control data: duty "+String(PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18]); break;
                                 case 0x0F: cmdText = "- Limit request"; break;
                                 case 0x0D: cmdText = "- Limit ack"; break;
@@ -1137,8 +1145,8 @@ void ENplus::loop()
 //
 
                 // Command 05, payload 37 30 38 36 36 31 65 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-                sprintf(str, "%s", PrivCommRxBuffer+8);
-                logger.printfln("   cmd_%.2X seq:%.2X RFID card detected. ID: %s", cmd, seq, str);
+          //      sprintf(str, "%s", PrivCommRxBuffer+8);
+                logger.printfln("   cmd_%.2X seq:%.2X RFID card detected. ID: %s", cmd, seq, PrivCommRxBuffer + PayloadStart); //str);
                 //Tx(cmd_A5 len:47) :  FA 03 00 00 A5 1D 25 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 D0 00 00 00 00 A4 86
 		// privCommCmdA5CardAuthAck PrivCommTxBuffer+40 = 0x40; // allow charging
 		// privCommCmdA5CardAuthAck PrivCommTxBuffer+40 = 0xD0; // decline charging
@@ -1246,24 +1254,6 @@ void ENplus::loop()
                         logger.printfln("RFID Card %s", rfid);
                     }
                 }
-	/*
-                {
-                    //sendRequest0E
-                    time_t t = now(); // get current time
-                    PrivCommTxBuffer[PayloadStart + 0] = 0x40;
-                    PrivCommTxBuffer[PayloadStart + 1] = year(t) -2000;
-                    PrivCommTxBuffer[PayloadStart + 2] = month(t);
-                    PrivCommTxBuffer[PayloadStart + 3] = day(t);
-                    PrivCommTxBuffer[PayloadStart + 4] = hour(t);
-                    PrivCommTxBuffer[PayloadStart + 5] = minute(t);
-                    PrivCommTxBuffer[PayloadStart + 6] = second(t);
-                    PrivCommTxBuffer[PayloadStart + 7] = 0;
-                    PrivCommTxBuffer[PayloadStart + 8] = 0;
-                    PrivCommTxBuffer[PayloadStart + 9] = 0;
-                    PrivCommTxBuffer[PayloadStart + 10] = 0;
-                    PrivCommSend(0xA8, 11, PrivCommTxBuffer); // privCommCmdA8RTDataAck
-                }
-	*/
                 sendTime(0xA8, 0x40, 12, seq); // send ack
                 break;
             case 0x09:
@@ -1283,6 +1273,7 @@ void ENplus::loop()
                     +",\"stopReason\":"+String(PrivCommRxBuffer[77])
                     +"}}"
                 );
+                sendCommand(TransactionAck, sizeof(TransactionAck), seq);
 // end experimental
                 break;
             case 0x0A:
