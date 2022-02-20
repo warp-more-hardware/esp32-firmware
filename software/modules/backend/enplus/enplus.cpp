@@ -20,10 +20,12 @@
 
 #include "enplus.h"
 #include "enplus_firmware.h"
-//#include "enplus_firmware.1.1.212.h"
-#include "enplus_firmware.1.1.258.h"
-#include "enplus_firmware.1.1.538.h"
-//#include "enplus_firmware.1.0.1435.h"
+//#include "enplus_firmware.1.0.1435h"  // RFID, 1 Ampere limit steps
+//#include "enplus_firmware.1.1.212.h"  // no RFID but climatization possible after charging completed, charging limits 8A/10A/13A/16A only
+#include "enplus_firmware.1.1.258.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
+//#include "enplus_firmware.1.1.538.h"
+//#include "enplus_firmware.1.1.805.h"
+#include "enplus_firmware.1.1.812.h"  // RFID, 1 Ampere limit steps
 
 #include "bindings/errors.h"
 
@@ -65,8 +67,9 @@ byte Init5[] = {0xAA, 0x18, 0x3E, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00};
 byte Init6[] = {0xAC, 0x11, 0x0D, 0x04, 0x00, 0xB8, 0x0B, 0x00, 0x00};
 byte Init7[] = {0xAA, 0x18, 0x3F, 0x04, 0x00, 0x1E, 0x00, 0x00, 0x00};
 byte Init8[] = {0xAA, 0x18, 0x25, 0x0E, 0x00, 0x05, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02};
+
 byte Init9[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x7B, 0x89};
-byte Init10[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x3B, 0x9C}; // is Init10 the same as Init12?
+byte Init10[] = {0xAA, 0x18, 0x12, 0x01, 0x00, 0x03, 0x3B, 0x9C}; // is Init10 the same as Init12? Probably 0x3B, 0x9C accidently copied from crc
 
 // ctrl_cmd set ack done, type:0
 //[2019-01-01 03:36:46] cmd_AA [privCommCmdAACfgCtrl]!
@@ -98,27 +101,19 @@ byte Init15[] = {0xAA, 0x18, 0x09, 0x01, 0x00, 0x00};
 //I (2021-04-11 18:36:27) [PRIV_COMM, 279]: ctrl_cmd set start power mode done -> minpower: 3150080
 
 //privCommCmdA7StartTransAck GD Firmware before 1.1.212?
-//byte StartChargingA7[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte StartChargingA7[] =   {0xA7, 'W',  'A',  'R',  'P',  ' ',  'C',  'h',  'a',  'r',  'g',  'e',  'r',  ' ',  'f',  'o',  'r',  ' ',  'E',  'N',  '+',  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-//byte StartChargingA6[] = {0xA6, '1', '9', '8', '0', '0', '0', '2', '0', '4', '9', '0', '_', 'A', 'P', 'P',  0,   0,   0,   0,   0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
-byte StartChargingA6[] =   {0xA6, 'W', 'A', 'R', 'P', ' ', 'C', 'h', 'a', 'r', 'g', 'e', 'r', ' ', 'f', 'o', 'r', ' ', 'E', 'N', '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
-//GD1.1.538 "RemoteStartTransaction",{"connectorId":1,"idTag":"19800020490_APP"}
-//byte StartChargingA6[] = {0xA6, '1', '9', '8', '0', '0', '0', '2', '0', '4', '9', '0', '_', 'A', 'P', 'P', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
+byte StartChargingA6[] = {0xA6, 'W', 'A', 'R', 'P', ' ', 'c', 'h', 'a', 'r', 'g', 'e', 'r', ' ', 'f', 'o', 'r', ' ', 'E', 'N', '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0};
+byte StopChargingA6[]  = {0xA6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 't', 't', 't', 't', 't', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0, 0, 0, 0, 0, 0, 0, 0};
 
+byte StartChargingA7[] = {0xA7, 't', 't', 't', 't', 't', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte StopChargingA7[]  = {0xA7, 't', 't', 't', 't', 't', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
 
-//byte StopChargingA7[] = {0xA7, 0x57, 0x41, 0x52, 0x50, 0x20, 0x43, 0x68, 0x61, 0x72, 0x67, 0x65, 0x72, 0x20, 0x66, 0x6F, 0x72, 0x20, 0x45, 0x4E, 0x2B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
-byte StopChargingA7[] =   {0xA7, 'W',  'A',  'R',  'P',  ' ',  'C',  'h',  'a',  'r',  'g',  'e',  'r',  ' ',  'f',  'o',  'r',  ' ',  'E',  'N',  '+',  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0};
-byte StopChargingA6[]  = {0xA6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x37, 0x38, 0x35, 0x34, 0x31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0, 0, 0, 0, 0, 0, 0, 0};
-//GD1.1.538 W (2022-01-10 20:32:21) [PRIV_COMM, 1875]: Tx(cmd_A6 len:83) :  FA 03, 0, 0 A6 44 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 31 34 34 37 34 37, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 40, 0, 0, 0, 0, 0, 0, 0, 0 71 48
-
-//byte TransactionAck[] = {0xA9, '1', '9', '8', '0', '0', '0', '2', '0', '4', '9', '0', '_', 'A', 'P', 'P', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte TransactionAck[] = {0xA9, 'W', 'A', 'R', 'P', ' ', 'C', 'h', 'a', 'r', 'g', 'e', 'r', ' ', 'f', 'o', 'r', ' ', 'E', 'N', '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte TransactionAck[] = {0xA9, 'W', 'A', 'R', 'P', ' ', 'c', 'h', 'a', 'r', 'g', 'e', 'r', ' ', 'f', 'o', 'r', ' ', 'E', 'N', '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 //privCommCmdAFSmartCurrCtl
-byte ChargingLimit3[] = {0xAD, 1, 0x91, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 'Y', 'm', 'd', 'h', 'm', 's', 00, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 'A', 0, 0, 0, 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte ChargingLimit1[] = {0xAF, 0, 'y', 'm', 'd', 'h', 'm', 's', 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 'A', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 byte ChargingLimit2[] = {0xAD, 0, 0x44, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'y', 'm', 'd', 'h', 'm', 's', 0, 0, 0, 0, 'A', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x03, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-byte ChargingLimit1[] = {0xAF, 0, 'y', 'm', 'd', 'h', 'm', 's', 0x80, 0x51, 0x01, 0, 0x01, 0, 0, 0, 0, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-//byte ChargingLimit1[] = {0xAF, 0, 'y', 'm', 'd', 'h', 'm', 's', 0x80, 0x51, 0x01, 0, 0x02, 0, 0, 0, 0, 0x10, 0x01, 0, 0, 0, 'A', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+byte ChargingLimit3[] = {0xAD, 1, 0x91, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 'Y', 'm', 'd', 'h', 'm', 's', 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 'A', 0, 0, 0, 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//byte ChargingLimit1b[] = {0xAF, 0, 'y', 'm', 'd', 'h', 'm', 's', 0x80, 0x51, 0x01, 0, 0x02, 0, 0, 0, 0, 0x10, 0x01, 0, 0, 0, 'A', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //GD1.1.538  [2,"e3031518-5180-4c86-98ea-77fe478b09d1","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileKind":"Relative","chargingProfilePurpose": "TxDefaultProfile","chargingSchedule":{"startSchedule":"2022-01-10T20:29:10Z","chargingSchedulePeriod":[{"startPeriod":0,"limit":6.0,"numberPhases":3}],"chargingRateUnit":"A"},"chargingProfileId":2013,"stackLevel":0}}]
 // Tx(cmd_AD len:122) : 0xAD,     0, 0xDD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, y, m, d, h, m, s, 0, 0, 0, 0, ChargeLimitA, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x03, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 // Rx(cmd_0D, len:13) : 0x0D,     0, 0, 0
@@ -126,8 +121,8 @@ byte ChargingLimit1[] = {0xAF, 0, 'y', 'm', 'd', 'h', 'm', 's', 0x80, 0x51, 0x01
 // Tx(cmd_AF, len:292) : 0xAF,    0, y, m, d, h, m, s, 0x80, 0x51, 0x01, 0, 0x02, 0, 0, 0, 0, 0x10, 0x01, 0, 0, 0, ChargeLimitA, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 //privCommCmdADSmartchargeCtl
-byte ChargingSettings[] = {0xAD, 0x01, 0x91, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0, 0, 0, 0, 0x79, 0x08, 0x16, 0x10, 0x04, 0x10, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x06, 0, 0, 0, 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-//byte ChargingSettings[] = {0xAD,    0, 0xDD,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 'y', 'm',  'd', 'h',  'm',  's', 0,    0, 0, 0, 'A',  0,    0,    0,    0,    0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x03, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//byte ChargingLimit3[] = {0xAD, 0x01, 0x91, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0, 0, 0,  0, 0x79, 0x08, 0x16, 0x10, 0x04, 0x10, 0, 0, 0,  0, 0xFF, 0xFF, 0xFF, 0xFF, 0x06, 0, 0, 0, 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//byte ChargingLimit4[] = {0xAD,    0, 0xDD,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 'y', 'm',  'd',  'h',  'm',  's',    0, 0, 0, 0, 'A',  0,    0,    0,    0,    0,  0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x03, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // Enter boot mode: Tx(cmd_AB len: 20): FA 03 00 00 AB 14 0A 00 00 00 00 00 00 00 05 00 00 00 62 B2
 // ESP> W (2021-10-04 10:04:35) [PRIV_COMM, 1875]: Tx(cmd_AB len:20) :  FA 03 00 00 AB 15 0A 00 00 00 00 00 00 00 05 00 00 00 60 33  ^M
@@ -164,11 +159,11 @@ byte FlashVerify[811] = {0xAB, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x04, 0x00, 0
 */
 
 byte sendSequenceNumber = 1;
+int transactionNumber = 10000;
 
 /* experimental: JSON data sender */
 #include <HTTPClient.h>
-//const char* JSON_DECODER = "http://xxx.xxx.xxx.xxx/test.php";  // should be defined via configuration settings
-const char* JSON_DECODER = "http://185.84.80.24/autoaid/autoaid.php";  // should be defined via configuration settings
+const char* JSON_DECODER = "";  // e.g. "http://xxx.xxx.xxx.xxx/test.php", should be defined via configuration settings
 HTTPClient httpClient;  // for sending JSON data
 
 void send_http (String jmessage) {
@@ -182,8 +177,14 @@ void send_http (String jmessage) {
         httpClient.end();  // disconnect
     }
 }
-/*  end experimental */
 
+/* experimental: Test command receiver */
+#include <WiFiUdp.h>
+#define UDP_RX_PACKET_MAX_SIZE 1024
+WiFiUDP UdpListener;
+unsigned int commandPort = 43211;  // local port to listen on
+char receiveCommandBuffer[UDP_RX_PACKET_MAX_SIZE];  // buffer to hold incoming UDP data
+/* end experimental */
 
 uint16_t crc16_modbus(uint8_t *buffer, uint32_t length) {
         //uint16_t crc = 0xFFFF;
@@ -279,7 +280,7 @@ void ENplus::sendCommand(byte *data, int datasize, byte sendSequenceNumber) {
         case 0xA8: cmdText = "- Power data ack"; break;
         case 0xA9: cmdText = "- Transaction data ack"; break;
         case 0xAF: cmdText = "- Limit1: " + String(PrivCommTxBuffer[24]) + " Ampere"; break;
-        case 0xAD: cmdText = "- Limit2: " + String(PrivCommTxBuffer[72]) + " Ampere"; break;
+        case 0xAD: if (PrivCommTxBuffer[8] == 0) cmdText = "- Limit2: " + String(PrivCommTxBuffer[72]) + " Ampere"; else cmdText = "- Limit3: " + String(PrivCommTxBuffer[77]) + " Ampere"; break;
     }
     logger.printfln("Tx cmd_%.2X seq:%.2X len:%d crc:%.4X %s", PrivCommTxBuffer[4], PrivCommTxBuffer[5], datasize+9, crc, cmdText.c_str());
 
@@ -327,8 +328,6 @@ void ENplus::PrivCommAck(byte cmd, byte *data) {
     evse_privcomm.get("TX")->updateString(PrivCommHexBuffer);
 }
 
-
-
 void ENplus::sendTime(byte cmd, byte action, byte len, byte sendSequenceNumber) {
     TimeAck[0] = cmd;
     time_t t = now(); // get current time
@@ -370,8 +369,8 @@ void ENplus::sendChargingLimit1(time_t t, uint8_t currentLimit, byte sendSequenc
     sendCommand(ChargingLimit1, sizeof(ChargingLimit1), sendSequenceNumber);
 }
 
-void ENplus::sendChargingLimit2(time_t t, uint8_t currentLimit, byte sendSequenceNumber) {  // AD 00 44
-//    ChargingLimit2[2] = 8;  // 0x41 for 1.0.1435 ?
+void ENplus::sendChargingLimit2(time_t t, uint8_t currentLimit, byte sendSequenceNumber) {  // AD 00
+//    ChargingLimit2[2] = 8;  // charging profile ID - 0x41 for 1.0.1435 ?
     ChargingLimit2[55] = year(t) -2000;
     ChargingLimit2[56] = month(t);
     ChargingLimit2[57] = day(t);
@@ -379,7 +378,7 @@ void ENplus::sendChargingLimit2(time_t t, uint8_t currentLimit, byte sendSequenc
     ChargingLimit2[59] = minute(t);
     ChargingLimit2[60] = second(t);
     ChargingLimit2[65] = currentLimit;
-    sendCommand(ChargingLimit2, sizeof(ChargingLimit2), sendSequenceNumber);
+    sendCommand(ChargingLimit2, sizeof(ChargingLimit2), sendSequenceNumber);  // triggers 0F charging limit1 request
 }
 
 void ENplus::sendChargingLimit3(time_t t, uint8_t currentLimit, byte sendSequenceNumber) {  //  AD 01 91
@@ -390,7 +389,7 @@ void ENplus::sendChargingLimit3(time_t t, uint8_t currentLimit, byte sendSequenc
     ChargingLimit3[60] = minute(t);
     ChargingLimit3[61] = second(t);
     ChargingLimit3[70] = currentLimit;
-    sendCommand(ChargingLimit3, sizeof(ChargingLimit3), sendSequenceNumber);
+    sendCommand(ChargingLimit3, sizeof(ChargingLimit3), sendSequenceNumber);  // triggers 0F charging limit1 request
 }
 
 ENplus::ENplus()
@@ -522,16 +521,15 @@ int ENplus::bs_evse_start_charging() {
 
     switch (evse_hardware_configuration.get("GDFirmwareVersion")->asUint()) {
         case 212:
-            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);
-            sendCommand(StartChargingA7, sizeof(StartChargingA7), sendSequenceNumber++);
-            break;
-        case 258:
-            sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
-            sendCommand(StartChargingA7, sizeof(StartChargingA7), sendSequenceNumber++);
+            logger.printfln("Is the next command needed?");
+            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);  // needed?
+            sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);
             break;
         default:
-            logger.printfln("Unknown firmware version. Trying latest commands.");
+            logger.printfln("Unknown firmware version. Trying commands for latest version.");
+        case 258:
         case 538:
+        case 812:
         case 1435:
             sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);
             break;
@@ -541,18 +539,7 @@ int ENplus::bs_evse_start_charging() {
 
 int ENplus::bs_evse_stop_charging() {
     logger.printfln("EVSE stop charging");
-    switch (evse_hardware_configuration.get("GDFirmwareVersion")->asUint()) {
-        case 212:
-        case 258:
-            sendCommand(StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++);
-            break;
-        default:
-            logger.printfln("Unknown firmware version. Trying latest commands.");
-        case 538:
-        case 1435:
-            sendCommand(StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++);
-            break;
-    }
+    sendCommand(StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++);
     return 0;
 }
 
@@ -589,19 +576,16 @@ int ENplus::bs_evse_set_max_charging_current(uint16_t max_current) {
     logger.printfln("EVSE set configured charging limit to %d Ampere", uint8_t(max_current/1000));
     logger.printfln("EVSE calculated allowed charging limit is %d Ampere", allowed_charging_current);
     switch (evse_hardware_configuration.get("GDFirmwareVersion")->asUint()) {
-        case 212:
-            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);
-            break;
         case 258:
+        case 812:
+        case 1435:
             sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
             break;
         default:
-            logger.printfln("Unknown firmware version. Trying latest commands.");
+            logger.printfln("Unknown firmware version. Trying commands for latest version.");
+        case 212:
         case 538:
-        case 1435:
-            sendChargingLimit2(now(), allowed_charging_current, sendSequenceNumber++);
-            //sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
-            break;
+            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);
     }
     return 0;
 }
@@ -638,6 +622,7 @@ int ENplus::bs_evse_get_state(uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_
 
 void ENplus::setup()
 {
+    UdpListener.begin(commandPort); // experimental
     setup_evse();
     if(!api.restorePersistentConfig("evse/config", &evse_config)) {
         logger.printfln("EVSE error, could not restore persistent storage config");
@@ -1042,7 +1027,7 @@ void ENplus::loop()
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1919]: Rx(cmd_02 len:135) :  FA 03 00 00 02 26 7D 00 53 4E 31 30 30 35 32 31 30 31 31 39 33 35 37 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 24 D1 00 41 43 30 31 31 4B 2D 41 55 2D 32 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 2E 31 2E 32 37 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 09 00 00 00 00 00 5A 00 1E 00 00 00 00 00 00 00 00 00 D9 25
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A2 len:11) :  FA 03 00 00 A2 26 01 00 00 99 E0
                 logger.printfln("   cmd_%.2X seq:%.2X Ack Serial number and Version.", cmd, seq);
-                PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
+                //PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck  -> moved to below
                 sprintf(str, "%s", PrivCommRxBuffer+8);
                 evse_hardware_configuration.get("SerialNumber")->updateString(str);
                 sprintf(str, "%s",PrivCommRxBuffer+43);
@@ -1056,8 +1041,8 @@ void ENplus::loop()
                 if(!evse_hardware_configuration.get("initialized")->asBool()) {
                     initialized =
                         ((evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AU-25") == 0 || evse_hardware_configuration.get("Hardware")->asString().compareTo("AC011K-AE-25") == 0)
-                         && (evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)  // known working: 1.1.27, 1.1.212, 1.1.258, 1.1.525, 1.1.538
-                             && evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 538  // higest known working version (we assume earlier versions work as well)
+                         && (evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.1.", 0)  // known working: 1.1.27, 1.1.212, 1.1.258, 1.1.525, 1.1.538, 1.1.805, 1.1.812
+                             && evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 812  // higest known working version (we assume earlier versions work as well)
                             )
                             || (evse_hardware_configuration.get("FirmwareVersion")->asString().startsWith("1.0.", 0)  // known working: 1.0.1435
                                 && evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt() <= 1435  // higest known working version (we assume earlier versions work as well)
@@ -1071,6 +1056,7 @@ void ENplus::loop()
                          logger.printfln("EN+ GD EVSE Firmware Version or Hardware is not supported.");
                     }
                 }
+                PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
                 break;
             case 0x03:
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1919]: Rx(cmd_03 len:24) :  FA 03 00 00 03 27 0E 00 00 09 09 0D 00 00 02 00 00 00 00 00 04 00 80 BC
@@ -1082,11 +1068,11 @@ void ENplus::loop()
 /* (2021-10-04 10:04:40) [PRIV_COMM, 1875]: Tx(cmd_A3 len:17) :  FA 03 00 00 A3 03 07 00 10 15 0A 04 0A 04 27 4A D4 */
                 evseStatus = PrivCommRxBuffer[9];
                 if( PrivCommRxBuffer[8]==0x50 ) { // TODO this 0x50 is a wild guess, I've seen it work, and I'm sure there is more than just the evseStatus byte needed for a well founded decission
-                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s).", cmd, seq, evseStatus, evse_status_text[evseStatus]);
+                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s)", cmd, seq, evseStatus, evse_status_text[evseStatus]);
                     update_evseStatus(evseStatus);
                 } else {
                     //TODO figure out what substatus (PrivCommRxBuffer[8]) is or should be
-                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) but substatus (%.2X) not 0x50.", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[8]);
+                    logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) but substatus - %.2X not 0x50.", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[8]);
                     if(evse_hardware_configuration.get("initialized")->asBool()) { // only update the EVSE status if we support the hardware
                         update_evseStatus(evseStatus);
                     }
@@ -1098,7 +1084,7 @@ void ENplus::loop()
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A4 len:17) :  FA 03 00 00 A4 28 07 00 00 E2 01 01 00 08 34 E5 6B
                 evseStatus = PrivCommRxBuffer[8];
                 update_evseStatus(evseStatus);
-                logger.printfln("   cmd_%.2X seq:%.2X status:%d %s value:%d  time request / privCommCmdA4HBAck", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[12]);
+                logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s) value:%d  time request / privCommCmdA4HBAck", cmd, seq, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[12]);
 // experimental:
                 send_http(String(",\"type\":\"en+04\",\"data\":{")
                     +"\"status\":"+String(PrivCommRxBuffer[8])  // status
@@ -1125,7 +1111,7 @@ void ENplus::loop()
 //                                                                                                                                                                                        D0
 //W (2021-08-07 07:47:56) [PRIV_COMM, 1764]: Tx(cmd_A5 len:47) :  FA 03 00 00 A5 1D 25 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 D0 00 00 00 00 A4 86
 //
-		// der GD sendet nur ein cmd_05 wenn er in einem bestimmten mode ist.
+		// der GD sendet nur ein cmd_05 wenn er in einem bestimmten mode ist?
 		// vor dem cmd_05 sagt er dann: online_net_ok_start (das "create window fail" kommt aber immer)
 //[2021-08-07 07:52:33]
 //[m1] get_sn->5: 59 50 A6 74 E1
@@ -1181,14 +1167,15 @@ void ENplus::loop()
                   //+", startMode(?): "+String(message[73])  // 0:app, 1:card, 2:vin
                   //+", meter start: "+String(message[80]+256*message[81])+"Wh"
                   //);
-// experimental:
                 // start/stop charging request from GD
+// experimental:
            //     if (PrivCommRxBuffer[65] == 0) {
                 if (PrivCommRxBuffer[72] == 0) {
                     logger.printfln("   cmd_%.2X seq:%.2X Start charging", cmd, seq);
                     sendCommand(StartChargingA7, sizeof(StartChargingA7), seq);
                     send_http(String(",\"type\":\"en+07\",\"data\":{")
-                      +"\"meterStart\":"+String(PrivCommRxBuffer[79]+256*PrivCommRxBuffer[80])  // status ?
+                      +"\"transaction\":"+String(transactionNumber)
+                      +",\"meterStart\":"+String(PrivCommRxBuffer[79]+256*PrivCommRxBuffer[80])  // status ?
                       //+",\"startMode\":"+String(PrivCommRxBuffer[72])
                       +"}}"
                     );
@@ -1208,7 +1195,7 @@ void ENplus::loop()
                     evseStatus = PrivCommRxBuffer[77];
                     update_evseStatus(evseStatus);
                     logger.printfln("   cmd_%.2X seq:%.2X status:%d (%s)", cmd, seq, evseStatus, evse_status_text[evseStatus]);
-                    logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%.1fV\t%.1fV\t%.1fV\t%.1fA\t%.1fA\t%.1fA\t%d\t",
+                    logger.printfln("\t%dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%.1fV\t%.1fV\t%.1fV\t%.1fA\t%.1fA\t%.1fA\t%d minutes",
                               PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
                               PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87],
                               PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89],  // charged energy Wh
@@ -1228,6 +1215,7 @@ void ENplus::loop()
 // experimental:
                     send_http(String(",\"type\":\"en+08\",\"data\":{")
                         +"\"status\":"+String(PrivCommRxBuffer[77])  // status
+                        +",\"transaction\":"+String(transactionNumber)
                         +",\"energy1\":"+String(PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85])  // charged energy Wh
                         +",\"aaa\":"+String(PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87])
                         +",\"energy2\":"+String(PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89])  // charged energy Wh
@@ -1257,7 +1245,7 @@ void ENplus::loop()
                 sendTime(0xA8, 0x40, 12, seq); // send ack
                 break;
             case 0x09:
-                logger.printfln("   cmd_%.2X seq:%.2X Charging stop reason: %d start: %04d/%02d/%02d %02d:%02d:%02d stopp: %04d/%02d/%02d %02d:%02d:%02d meter: %dWh v1: %d v2: %d v3: %d",
+                logger.printfln("   cmd_%.2X seq:%.2X Charging stop reason:%d start:%04d/%02d/%02d %02d:%02d:%02d stopp:%04d/%02d/%02d %02d:%02d:%02d meter:%dWh v1:%d v2:%d v3:%d",
                     cmd, seq,
                     PrivCommRxBuffer[77],  // "stopreson": 1 = Remote, 3 = EVDisconnected
                     PrivCommRxBuffer[80]+2000, PrivCommRxBuffer[81], PrivCommRxBuffer[82], PrivCommRxBuffer[83], PrivCommRxBuffer[84], PrivCommRxBuffer[85],
@@ -1266,13 +1254,14 @@ void ENplus::loop()
                     PrivCommRxBuffer[78]+256*PrivCommRxBuffer[79],
                     PrivCommRxBuffer[92]+256*PrivCommRxBuffer[93],
                     PrivCommRxBuffer[94]+256*PrivCommRxBuffer[95]);
-                PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA9RecordAck
 // experimental:
                 send_http(String(",\"type\":\"en+09\",\"data\":{")
-                    +"\"meterStop\":"+String(PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97])  // status
+                    +"\"transaction\":"+String(transactionNumber)
+                    +",\"meterStop\":"+String(PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97])  // status
                     +",\"stopReason\":"+String(PrivCommRxBuffer[77])
                     +"}}"
                 );
+                //PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA9RecordAck
                 sendCommand(TransactionAck, sizeof(TransactionAck), seq);
 // end experimental
                 break;
@@ -1378,7 +1367,7 @@ void ENplus::loop()
             case 0x0E:
 // [2021-08-07 07:55:05] Tx(cmd_0E len:76) : FA 03 00 00 0E 11 42 00 00 00 00 00 00 00 00 00 00 0A 01 77 02 37 35 32 30 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 66 08 97 08 14 00 7A 01 01 00 00 00 00 00 00 00 00 00 00 DE 91
 // [2021-08-07 07:55:05] cmd0E_DutyData pwmMax:266
-                logger.printfln("   cmd_%.2X seq:%.2X duty:%d cpVolt:%d power factors:%d/%d/%d/%d offset0:%d offset1:%d leakcurr:%d AMBTemp:%d lockstatus:%d",
+                logger.printfln("   cmd_%.2X seq:%.2X duty:%d cpVolt:%d power factors:%d/%d/%d/%d offset0:%d offset1:%d leakcurr:%d AMBTemp:%d lock:%d",
                     cmd, seq,
                     PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18],
                     PrivCommRxBuffer[19]+256*PrivCommRxBuffer[20],
@@ -1391,7 +1380,8 @@ void ENplus::loop()
                 //PrivCommAck(cmd, PrivCommTxBuffer); // Ack?
 // experimental:
                 send_http(String(",\"type\":\"en+0E\",\"data\":{")
-                    +"\"duty\":"+String(PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18])
+                    +"\"transaction\":"+String(transactionNumber)
+                    +",\"duty\":"+String(PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18])
                     +",\"cpVolt\":"+String(PrivCommRxBuffer[19]+256*PrivCommRxBuffer[20])
                     +",\"pf1\":"+String(PrivCommRxBuffer[9]+256*PrivCommRxBuffer[10])  // power factor 1
                     +",\"pf2\":"+String(PrivCommRxBuffer[11]+256*PrivCommRxBuffer[12])  // power factor 2
@@ -1401,23 +1391,15 @@ void ENplus::loop()
                     +",\"offset1\":"+String(PrivCommRxBuffer[57]+256*PrivCommRxBuffer[58])
                     +",\"leakcurr\":"+String(PrivCommRxBuffer[59]+256*PrivCommRxBuffer[60])
                     +",\"AMBTemp\":"+String(PrivCommRxBuffer[61]+256*PrivCommRxBuffer[62])
-                    +",\"lockstatus\":"+String(PrivCommRxBuffer[63])
+                    +",\"lock\":"+String(PrivCommRxBuffer[63])
                     +"}}"
                 );
 // end experimental
                 break;
             case 0x0F:
                 logger.printfln("   cmd_%.2X seq:%.2X Charging limit request", cmd, seq);
-                sendChargingLimit1(now(), allowed_charging_current, seq);
-
-                // ChargingLimit1[2] = year(t) -2000;
-                // ChargingLimit1[3] = month(t);
-                // ChargingLimit1[4] = day(t);
-                // ChargingLimit1[5] = hour(t);
-                // ChargingLimit1[6] = minute(t);
-                // ChargingLimit1[7] = second(t);
-                // ChargingLimit1[22] = allowed_charging_current;
-                // sendCommand(ChargingLimit1, sizeof(ChargingLimit1), seq);
+                //sendChargingLimit1(now(), allowed_charging_current, seq);                     // Uwe: needed at least for 1.1.258?
+                logger.printfln(" Requested limit1 command AF not sent! (testing)");
                 break;
             default:
                 logger.printfln("   cmd_%.2X seq:%.2X I don't know what to do about it.", cmd, seq);
@@ -1434,15 +1416,54 @@ void ENplus::loop()
         logger.printfln("resend the last chunk fseq: %d, seq: %d rfnc: %s", flash_seq, PrivCommTxBuffer[5], ready_for_next_chunk?"true":"false");
         sendCommand(FlashVerify, MAXLENGTH+11, sendSequenceNumber++); // next chunk (11 bytes header) 
     }
+
+
+// experimental: UDP command receiver for testing
+    int packetSize = UdpListener.parsePacket();
+    if (packetSize) {
+        logger.printfln("Received UDP packet of size %d from %s:%d.", packetSize, UdpListener.remoteIP().toString().c_str(), UdpListener.remotePort());
+        // read the packet into packetBufffer
+        UdpListener.read(receiveCommandBuffer, UDP_RX_PACKET_MAX_SIZE);
+        receiveCommandBuffer[packetSize] = '\0';
+        logger.printfln("Content: %s", receiveCommandBuffer);
+        switch (receiveCommandBuffer[0]) {
+            case 'L':
+                uint8_t limit;
+                if (receiveCommandBuffer[2] >= 'A') limit = receiveCommandBuffer[2]+10-'A';  // e.g. L2F for 15 Ampere;
+                else limit = receiveCommandBuffer[2]-'0';  // e.g. L29 for 9A
+
+                if (receiveCommandBuffer[1] == '1') sendChargingLimit1(now(), limit, sendSequenceNumber++);  // working for 1.1.258
+                else if (receiveCommandBuffer[1] == '2') sendChargingLimit2(now(), limit, sendSequenceNumber++);
+                else if (receiveCommandBuffer[1] == '3') sendChargingLimit3(now(), limit, sendSequenceNumber++);  // working for 1.1.212
+
+                if (receiveCommandBuffer[1] == 'P') {
+                    ChargingLimit3[74] = 1;
+                    sendChargingLimit3(now(), limit, sendSequenceNumber++);  // e.g. LPA for 1 phase, 10 Ampere. Sadly not working here :-( 
+                    ChargingLimit3[74] = 3;
+                }
+                break;
+            case 'C':
+                if (receiveCommandBuffer[1] == '6') {
+                    if (receiveCommandBuffer[2] == '0') sendCommand(StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++);  // stop charging handshake
+                    else if (receiveCommandBuffer[2] == '1') sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);  // start charging handshake
+                } else if (receiveCommandBuffer[1] == '7') {
+                    if (receiveCommandBuffer[2] == '0') sendCommand(StopChargingA7, sizeof(StopChargingA7), sendSequenceNumber++);  // stop charging directly
+                    else if (receiveCommandBuffer[2] == '1') sendCommand(StartChargingA7, sizeof(StartChargingA7), sendSequenceNumber++);  // start charging directly
+                }
+                break;
+            case 'V':
+                sendCommand(Init12, sizeof(Init12), sendSequenceNumber++);  // triggers 0x02 reply: SN, Hardware, Version
+        }
+    }
+// end experimental
 }
 
 void ENplus::setup_evse()
 {
-    Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
     Serial2.setRxBufferSize(1024);
-    Serial2.setTimeout(90);
-    logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27, timeout 90ms");
-
+    Serial2.begin(115200, SERIAL_8N1, 26, 27); // PrivComm to EVSE GD32 Chip
+    //Serial2.setTimeout(90);
+    logger.printfln("Set up PrivComm: 115200, SERIAL_8N1, RX 26, TX 27");
 
     // TODO start: look out for this on a unconfigured box ( no wifi ) - if it still works, delete the code
     setTime(23,59,00,31,12,2018);
@@ -1483,7 +1504,7 @@ void ENplus::setup_evse()
     sendCommand(Init7,  sizeof(Init7), sendSequenceNumber++);
     sendCommand(Init8,  sizeof(Init8), sendSequenceNumber++);
     sendCommand(Init9,  sizeof(Init9), sendSequenceNumber++);
-    sendCommand(Init10, sizeof(Init10), sendSequenceNumber++);
+    sendCommand(Init10, sizeof(Init10), sendSequenceNumber++);  // last two bytes correct?
 
 //W (1970-01-01 00:08:53) [PRIV_COMM, 1764]: Tx(cmd_AA len:15) :  FA 03 00 00 AA 08 05 00 18 12 01 00 03 BA 45
 //W (2021-04-11 18:36:27) [PRIV_COMM, 1919]: Rx(cmd_0A len:15) :  FA 03 00 00 0A 08 05 00 14 12 01 00 00 12 42
@@ -1706,6 +1727,17 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
     if(last_iec61851_state != evse_state.get("iec61851_state")->asUint()) {
         evse_state.get("last_state_change")->updateUint(millis());
         evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
+	if(evseStatus == 2 && last_evseStatus == 1) { // just plugged in
+            transactionNumber++;
+            char buffer[12];
+            sprintf(buffer, "%05d", transactionNumber);
+            for (int i=0; i<5; i++) {  // patch transaction number into command templates
+                StartChargingA7[i+1] = byte(buffer[i]);
+                StopChargingA7[i+1] = byte(buffer[i]);
+                StopChargingA6[i+33] = byte(buffer[i]);
+            }
+            logger.printfln("New transaction number %05d", transactionNumber);
+        }
 	if(evse_auto_start_charging.get("auto_start_charging")->asBool()
            && evseStatus == 2 || (evseStatus == 6 && last_evseStatus == 0)) { // just plugged in or already plugged in at startup
             logger.printfln("Start charging automatically");
@@ -1861,7 +1893,7 @@ bool ENplus::handle_update_chunk1(int command, WebServerRequest request, size_t 
                 return true;
 
             // copy data
-            memcpy(FlashVerify+11, gd_firmware_1_1_258 + chunk_offset, maxlength);
+            memcpy(FlashVerify+11, gd_firmware_1_1_258 + chunk_offset, maxlength);  // firmware file for upload button
 
             MAXLENGTH = maxlength;
             sendCommand(FlashVerify, maxlength+11, sendSequenceNumber++); // next chunk (11 bytes header) 
@@ -1932,7 +1964,7 @@ bool ENplus::handle_update_chunk2(int command, WebServerRequest request, size_t 
                 return true;
 
             // copy data
-            memcpy(FlashVerify+11, gd_firmware_1_1_538 + chunk_offset, maxlength);
+            memcpy(FlashVerify+11, gd_firmware_1_1_812 + chunk_offset, maxlength);  //  firmware file for verify button
 
             MAXLENGTH = maxlength;
             sendCommand(FlashVerify, maxlength+11, sendSequenceNumber++); // next chunk (11 bytes header) 
