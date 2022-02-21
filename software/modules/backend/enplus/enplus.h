@@ -81,7 +81,6 @@ private:
     void sendChargingLimit2(time_t t, uint8_t currentLimit, byte sendSequenceNumber);
     void sendChargingLimit3(time_t t, uint8_t currentLimit, byte sendSequenceNumber);
 
-
     ConfigRoot evse_config;
     ConfigRoot evse_state;
     ConfigRoot evse_hardware_configuration;
@@ -158,6 +157,13 @@ static const char *evse_status_text[] = {
    "(Reserved)",
    "(Unavailable)",
    "Fault (charger in fault condition)",
+};
+
+static const char *stop_reason_text[] = {
+   "undefined",
+   "Remote",
+   "undefined",
+   "EV disconnected",
 };
 
 static const char *cmd_0B_text[] = {
