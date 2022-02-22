@@ -77,6 +77,8 @@ private:
     int bs_evse_persist_config();
     int bs_evse_get_state(uint8_t *ret_iec61851_state, uint8_t *ret_vehicle_state, uint8_t *ret_contactor_state, uint8_t *ret_contactor_error, uint8_t *ret_charge_release, uint16_t *ret_allowed_charging_current, uint8_t *ret_error_state, uint8_t *ret_lock_state, uint32_t *ret_time_since_state_change, uint32_t *ret_uptime);
 
+    const char* timeStr(byte *data, uint8_t offset);
+
     void sendChargingLimit1(time_t t, uint8_t currentLimit, byte sendSequenceNumber);
     void sendChargingLimit2(time_t t, uint8_t currentLimit, byte sendSequenceNumber);
     void sendChargingLimit3(time_t t, uint8_t currentLimit, byte sendSequenceNumber);

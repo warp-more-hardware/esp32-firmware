@@ -21,11 +21,11 @@
 #include "enplus.h"
 #include "enplus_firmware.h"
 //#include "enplus_firmware.1.0.1435h"  // RFID, 1 Ampere limit steps
-//#include "enplus_firmware.1.1.212.h"  // no RFID but climatization possible after charging completed, charging limits 8A/10A/13A/16A only
-#include "enplus_firmware.1.1.258.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
-//#include "enplus_firmware.1.1.538.h"
-//#include "enplus_firmware.1.1.805.h"
-#include "enplus_firmware.1.1.812.h"  // RFID, 1 Ampere limit steps
+#include "enplus_firmware.1.1.212.h"  // no RFID but climatization possible after charging completed, charging limits 8A/10A/13A/16A only
+//#include "enplus_firmware.1.1.258.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
+//#include "enplus_firmware.1.1.538.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
+//#include "enplus_firmware.1.1.805.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
+#include "enplus_firmware.1.1.812.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
 
 #include "bindings/errors.h"
 
@@ -258,6 +258,15 @@ void ENplus::Serial2write(byte *data, int size) {
     }
 }
 
+char timeString[20];  // global since local variable could not be used as return value
+const char* ENplus::timeStr(byte *data, uint8_t offset=0) {
+    sprintf(timeString, "%04d/%02d/%02d %02d:%02d:%02d",
+        data[offset++]+2000, data[offset++], data[offset++],
+        data[offset++], data[offset++], data[offset]
+    );
+    return timeString;
+}
+
 void ENplus::sendCommand(byte *data, int datasize, byte sendSequenceNumber) {
     PrivCommTxBuffer[4] = data[0]; // command code
     PrivCommTxBuffer[5] = sendSequenceNumber;
@@ -275,9 +284,7 @@ void ENplus::sendCommand(byte *data, int datasize, byte sendSequenceNumber) {
     switch (PrivCommTxBuffer[4]) {
         case 0xA3: cmdText = "- Status data ack"; break;
         case 0xA4:
-            char timeString[20];
-            sprintf(timeString, "%04d/%02d/%02d %02d:%02d:%02d" ,PrivCommTxBuffer[9]+2000, PrivCommTxBuffer[10], PrivCommTxBuffer[11], PrivCommTxBuffer[12], PrivCommTxBuffer[13], PrivCommTxBuffer[14]);
-            cmdText = "- Heartbeat ack " + String(timeString);
+            cmdText = "- Heartbeat ack " + String(timeStr(PrivCommTxBuffer+9));
             break;
         case 0xA6: if (PrivCommTxBuffer[72] == 0x40) cmdText = "- Stop charging request"; else cmdText = "- Start charging request"; break;
         case 0xA7: if (PrivCommTxBuffer[40] == 0x10) cmdText = "- Stop charging command"; else cmdText = "- Start charging command"; break;
@@ -525,14 +532,14 @@ int ENplus::bs_evse_start_charging() {
 
     switch (evse_hardware_configuration.get("GDFirmwareVersion")->asUint()) {
         case 212:
-            logger.printfln("Is the next command needed?");
-            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);  // needed?
+            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);
             sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);
             break;
         default:
             logger.printfln("Unknown firmware version. Trying commands for latest version.");
         case 258:
         case 538:
+        case 805:
         case 812:
         case 1435:
             sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);
@@ -580,16 +587,17 @@ int ENplus::bs_evse_set_max_charging_current(uint16_t max_current) {
     logger.printfln("EVSE set configured charging limit to %d Ampere", uint8_t(max_current/1000));
     logger.printfln("EVSE calculated allowed charging limit is %d Ampere", allowed_charging_current);
     switch (evse_hardware_configuration.get("GDFirmwareVersion")->asUint()) {
-        case 258:
-        case 812:
-        case 1435:
-            sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
+        case 212:
+            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);
             break;
         default:
             logger.printfln("Unknown firmware version. Trying commands for latest version.");
-        case 212:
+        case 258:
         case 538:
-            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);
+        case 805:
+        case 812:
+        case 1435:
+            sendChargingLimit1(now(), allowed_charging_current, sendSequenceNumber++);
     }
     return 0;
 }
@@ -988,27 +996,6 @@ void ENplus::loop()
                                 evse_found = true;
                                 evse_hardware_configuration.get("evse_found")->updateBool(evse_found);
                             }
-/*
-                            String cmdText = "";
-                            switch (PrivCommRxBuffer[4]) {
-                                case 0x02: cmdText = "- Version data"; break;
-                                case 0x03: cmdText = "- Status data: "+String(PrivCommRxBuffer[9])+" - "+String(evse_status_text[PrivCommRxBuffer[9]]); break;
-                                case 0x04: cmdText = "- Heartbeat time request"; break;
-                                case 0x05: cmdText = "- RFID data"; break;
-                                case 0x06: if (PrivCommRxBuffer[72] == 0x40) cmdText = "- Stop charging request ack"; else cmdText = "- Start charging request ack"; break;
-                                case 0x07: if (PrivCommRxBuffer[72] == 0x10) cmdText = "- Stop charging approval"; else cmdText = "- Start charging approval"; break;
-                                case 0x08: cmdText = "- Power data: "
-                                                       +String(float(PrivCommRxBuffer[106]+256*PrivCommRxBuffer[107])/10,1)+"A, "
-                                                       +String(PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97])+"W, "
-                                                       +String(PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89])+"Wh";
-                                           break;
-                                case 0x09: cmdText = "- Transaction data"; break;
-                                case 0x0D: cmdText = "- Limit ack"; break;
-                                case 0x0E: cmdText = "- Control data: duty "+String(PrivCommRxBuffer[17]+256*PrivCommRxBuffer[18]); break;
-                                case 0x0F: cmdText = "- Limit request"; break;
-                            }
-                            logger.printfln("Rx-cmd_%.2X seq:%.2X len:%d crc:%.4X %s", cmd, seq, len, crc, cmdText.c_str());
-*/
                         } else {
                             logger.printfln("CRC ERROR Rx cmd_%.2X seq:%.2X len:%d crc:%.4X checksum:%.4X", cmd, seq, len, crc, checksum);
                             break;
@@ -1031,8 +1018,7 @@ void ENplus::loop()
             case 0x02: // Info: Serial number, Version
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1919]: Rx(cmd_02 len:135) :  FA 03 00 00 02 26 7D 00 53 4E 31 30 30 35 32 31 30 31 31 39 33 35 37 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 24 D1 00 41 43 30 31 31 4B 2D 41 55 2D 32 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 2E 31 2E 32 37 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 09 00 00 00 00 00 5A 00 1E 00 00 00 00 00 00 00 00 00 D9 25
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A2 len:11) :  FA 03 00 00 A2 26 01 00 00 99 E0
-                logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X Serial number and version.", cmd, seq, len, crc);
-                //PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck  -> moved to below
+                logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X - Serial number and version.", cmd, seq, len, crc);
                 sprintf(str, "%s", PrivCommRxBuffer+8);
                 evse_hardware_configuration.get("SerialNumber")->updateString(str);
                 sprintf(str, "%s",PrivCommRxBuffer+43);
@@ -1091,7 +1077,7 @@ void ENplus::loop()
 //W (1970-01-01 00:08:52) [PRIV_COMM, 1764]: Tx(cmd_A4 len:17) :  FA 03 00 00 A4 28 07 00 00 E2 01 01 00 08 34 E5 6B
                 evseStatus = PrivCommRxBuffer[8];
                 update_evseStatus(evseStatus);
-                logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X - Heartbeat time request, Status %d: %s, value:%d", cmd, seq, len, crc, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[12]);
+                logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X - Heartbeat request, Status %d: %s, value:%d", cmd, seq, len, crc, evseStatus, evse_status_text[evseStatus], PrivCommRxBuffer[12]);
 // experimental:
                 send_http(String(",\"type\":\"en+04\",\"data\":{")
                     +"\"status\":"+String(PrivCommRxBuffer[8])  // status
@@ -1255,9 +1241,9 @@ void ENplus::loop()
                 logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X - Charging stop reason: %d - %s",
                     cmd, seq, len, crc,
                     PrivCommRxBuffer[77], stop_reason_text[PrivCommRxBuffer[77]]);  // "stopreson": 1 = Remote, 3 = EVDisconnected
-                logger.printfln("start:%04d/%02d/%02d %02d:%02d:%02d stopp:%04d/%02d/%02d %02d:%02d:%02d meter:%dWh v1:%d v2:%d v3:%d",
-                    PrivCommRxBuffer[80]+2000, PrivCommRxBuffer[81], PrivCommRxBuffer[82], PrivCommRxBuffer[83], PrivCommRxBuffer[84], PrivCommRxBuffer[85],
-                    PrivCommRxBuffer[86]+2000, PrivCommRxBuffer[87], PrivCommRxBuffer[88], PrivCommRxBuffer[89], PrivCommRxBuffer[90], PrivCommRxBuffer[91],
+                logger.printfln("start:%s stop:%s meter:%dWh value1:%d value2:%d value3:%d",
+                    timeStr(PrivCommRxBuffer+80),
+                    timeStr(PrivCommRxBuffer+86),
                     PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97],
                     PrivCommRxBuffer[78]+256*PrivCommRxBuffer[79],
                     PrivCommRxBuffer[92]+256*PrivCommRxBuffer[93],
@@ -1446,7 +1432,7 @@ void ENplus::loop()
                 if (receiveCommandBuffer[2] >= 'A') limit = receiveCommandBuffer[2]+10-'A';  // e.g. L2F for 15 Ampere;
                 else limit = receiveCommandBuffer[2]-'0';  // e.g. L29 for 9A
 
-                if (receiveCommandBuffer[1] == '1') sendChargingLimit1(now(), limit, sendSequenceNumber++);  // working for 1.1.258
+                if (receiveCommandBuffer[1] == '1') sendChargingLimit1(now(), limit, sendSequenceNumber++);  // working for all except for 1.1.212
                 else if (receiveCommandBuffer[1] == '2') sendChargingLimit2(now(), limit, sendSequenceNumber++);
                 else if (receiveCommandBuffer[1] == '3') sendChargingLimit3(now(), limit, sendSequenceNumber++);  // working for 1.1.212
 
@@ -1680,7 +1666,8 @@ void ENplus::update_evse_state() {
     if(last_allowed_charging_current != allowed_charging_current) {
         evse_state.get("allowed_charging_current")->updateUint(allowed_charging_current);
         logger.printfln("EVSE: allowed_charging_current %d", allowed_charging_current);
-        bs_evse_set_max_charging_current(allowed_charging_current);
+        //bs_evse_set_max_charging_current(allowed_charging_current);  // Uwe: not needed here since requested by GD during start charging sequence
+        logger.printfln("---->   bs_evse_set_max_charging_current function call dropped!");
     }
     bool error_state_changed = evse_state.get("error_state")->updateUint(error_state);
     evse_state.get("lock_state")->updateUint(lock_state);
@@ -1907,7 +1894,7 @@ bool ENplus::handle_update_chunk1(int command, WebServerRequest request, size_t 
                 return true;
 
             // copy data
-            memcpy(FlashVerify+11, gd_firmware_1_1_258 + chunk_offset, maxlength);  // firmware file for upload button
+            memcpy(FlashVerify+11, gd_firmware_1_1_212 + chunk_offset, maxlength);  // firmware file for upload button
 
             MAXLENGTH = maxlength;
             sendCommand(FlashVerify, maxlength+11, sendSequenceNumber++); // next chunk (11 bytes header) 
