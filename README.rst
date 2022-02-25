@@ -33,3 +33,8 @@ will follow in the future. For now in brief:
 * After the firmware is built in the software/build folder, the hooks use merge_bins.py
   to merge the firmware, bootloader, partition table, etc into one bin file that can be flashed
   on the ESP32 Brick at offset 0x1000 or can be uploaded to a running WARP Charger.
+  
+  Using The Fimware
+  -----------------
+  
+  For details, see the wiki page.
