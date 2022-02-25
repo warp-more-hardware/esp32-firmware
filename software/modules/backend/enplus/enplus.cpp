@@ -532,8 +532,8 @@ int ENplus::bs_evse_start_charging() {
 
     switch (evse_hardware_configuration.get("GDFirmwareVersion")->asUint()) {
         case 212:
-            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);
-            sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);
+            sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);  // max current is switched to 16A when plugged out to ensure full current range available
+            sendChargingLimit3(now(), allowed_charging_current, sendSequenceNumber++);  // reduce to intended value
             break;
         default:
             logger.printfln("Unknown firmware version. Trying commands for latest version.");
@@ -1042,9 +1042,9 @@ void ENplus::loop()
                     evse_hardware_configuration.get("initialized")->updateBool(initialized);
                     evse_hardware_configuration.get("GDFirmwareVersion")->updateUint(evse_hardware_configuration.get("FirmwareVersion")->asString().substring(4).toInt());
                     if(initialized) {
-                         logger.printfln("EN+ GD EVSE initialized.");
+                        logger.printfln("EN+ GD EVSE initialized.");
                     } else {
-                         logger.printfln("EN+ GD EVSE Firmware Version or Hardware is not supported.");
+                        logger.printfln("EN+ GD EVSE Firmware Version or Hardware is not supported.");
                     }
                 }
                 PrivCommAck(cmd, PrivCommTxBuffer); // privCommCmdA2InfoSynAck
@@ -1441,6 +1441,7 @@ void ENplus::loop()
                     sendChargingLimit3(now(), limit, sendSequenceNumber++);  // e.g. LPA for 1 phase, 10 Ampere. Sadly not working here :-( 
                     ChargingLimit3[74] = 3;
                 }
+                allowed_charging_current = limit;
                 break;
             case 'C':
                 if (receiveCommandBuffer[1] == '6') {
@@ -1450,6 +1451,14 @@ void ENplus::loop()
                     if (receiveCommandBuffer[2] == '0') sendCommand(StopChargingA7, sizeof(StopChargingA7), sendSequenceNumber++);  // stop charging directly
                     else if (receiveCommandBuffer[2] == '1') sendCommand(StartChargingA7, sizeof(StartChargingA7), sendSequenceNumber++);  // start charging directly
                 }
+                break;
+            case 'O':
+                // output as comment
+                break;
+            case 'R':
+                RemoteUpdate[7] = 5; // Reset GD into boot mode
+                //sendCommand(RemoteUpdate, sizeof(RemoteUpdate), sendSequenceNumber++);
+                sendCommand(EnterAppMode, sizeof(EnterAppMode), sendSequenceNumber++);  // Restart GD
                 break;
             case 'V':
                 sendCommand(Init12, sizeof(Init12), sendSequenceNumber++);  // triggers 0x02 reply: SN, Hardware, Version
@@ -1728,6 +1737,11 @@ void ENplus::update_evseStatus(uint8_t evseStatus) {
     if(last_iec61851_state != evse_state.get("iec61851_state")->asUint()) {
         evse_state.get("last_state_change")->updateUint(millis());
         evse_state.get("time_since_state_change")->updateUint(millis() - evse_state.get("last_state_change")->asUint());
+	if((evseStatus != last_evseStatus == 1) && (evseStatus == 1)) { // plugged out
+            if (evse_hardware_configuration.get("GDFirmwareVersion")->asUint() == 212)
+                //sendChargingLimit2(now(), 16, sendSequenceNumber++);  // hack to ensure full current range is available in next charging session 
+                sendChargingLimit3(now(), 16, sendSequenceNumber++);  // hack to ensure full current range is available in next charging session
+        }
 	if(evseStatus == 2 && last_evseStatus == 1) { // just plugged in
             transactionNumber++;
             char buffer[13];
