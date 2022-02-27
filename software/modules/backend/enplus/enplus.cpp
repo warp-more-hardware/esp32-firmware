@@ -19,6 +19,7 @@
  */
 
 #include "enplus.h"
+#ifdef GD_FLASH
 #include "enplus_firmware.h"
 //#include "enplus_firmware.1.0.1435h"  // RFID, 1 Ampere limit steps
 #include "enplus_firmware.1.1.212.h"  // no RFID but climatization possible after charging completed, charging limits 8A/10A/13A/16A only
@@ -26,6 +27,7 @@
 //#include "enplus_firmware.1.1.538.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
 //#include "enplus_firmware.1.1.805.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
 #include "enplus_firmware.1.1.812.h"  // RFID, no climatization possible after charging completed, 1 Ampere limit steps
+#endif
 
 #include "bindings/errors.h"
 
@@ -817,6 +819,7 @@ void ENplus::register_urls()
 
     }, true);
 
+#ifdef GD_FLASH
     server.on("/update_gd", HTTP_GET, [this](WebServerRequest request){
         //request.send(200, "text/html", "<form><input id=\"firmware\"type=\"file\"> <button id=\"u_firmware\"type=\"button\"onclick='u(\"firmware\")'>Flash GD Firmware</button> <label id=\"p_firmware\"></label><button id=\"u_verify\"type=\"button\"onclick='u(\"verify\")'>Verify GD Firmware</button> <label id=\"p_verify\"></label></form><script>function u(e){var t,n,d,o=document.getElementById(\"firmware\").files;0==o.length?alert(\"No file selected!\"):(document.getElementById(\"firmware\").disabled=!0,document.getElementById(\"u_firmware\").disabled=!0,document.getElementById(\"u_verify\").disabled=!0,t=o[0],n=new XMLHttpRequest,d=document.getElementById(\"p_\"+e),n.onreadystatechange=function(){4==n.readyState&&(200==n.status?(document.open(),document.write(n.responseText),document.close()):(0==n.status?alert(\"Server closed the connection abruptly!\"):alert(n.status+\" Error!\\n\"+n.responseText),location.reload()))},n.upload.addEventListener(\"progress\",function(e){e.lengthComputable&&(d.innerHTML=e.loaded/e.total*100+\"% (\"+e.loaded+\" / \"+e.total+\")\")},!1),n.open(\"POST\",\"/flash_\"+e,!0),n.send(t))}</script>");
         request.send(200, "text/html", "<form><input id=\"gd_firmware\"type=\"file\"> <button id=\"u_firmware\"type=\"button\"onclick='u(\"gd_firmware\")'>Upload GD Firmware</button> <label id=\"p_gd_firmware\"></label></form><form><input id=\"verify\"type=\"file\"> <button id=\"u_verify\"type=\"button\"onclick='u(\"verify\")'>Verify GD Firmware</button> <label id=\"p_verify\"></label></form><script>function u(e){var t,n,d,o=document.getElementById(e).files;0==o.length?alert(\"No file selected!\"):(document.getElementById(\"gd_firmware\").disabled=!0,document.getElementById(\"u_firmware\").disabled=!0,document.getElementById(\"verify\").disabled=!0,document.getElementById(\"u_verify\").disabled=!0,t=o[0],n=new XMLHttpRequest,d=document.getElementById(\"p_\"+e),n.onreadystatechange=function(){4==n.readyState&&(200==n.status?(document.open(),document.write(n.responseText),document.close()):(0==n.status?alert(\"Server closed the connection abruptly!\"):alert(n.status+\" Error!\\n\"+n.responseText),location.reload()))},n.upload.addEventListener(\"progress\",function(e){e.lengthComputable&&(d.innerHTML=e.loaded/e.total*100+\"% (\"+e.loaded+\" / \"+e.total+\")\")},!1),n.open(\"POST\",\"/flash_\"+e,!0),n.send(t))}</script>");
@@ -866,6 +869,7 @@ void ENplus::register_urls()
     /* },[this](WebServerRequest request, String filename, size_t index, uint8_t *data, size_t len, bool final){ */
     /*     return handle_update_chunk(4, request, index, data, len, final, request.contentLength()); */
     /* }); */
+#endif
 
 #ifdef MODULE_WS_AVAILABLE
     server.on("/evse/start_debug", HTTP_GET, [this](WebServerRequest request) {
@@ -1792,6 +1796,7 @@ bool ENplus::is_in_bootloader(int rc) {
 }
 
 
+#ifdef GD_FLASH
 /* GD Firmware updater */
 
 bool ENplus::handle_update_chunk(int command, WebServerRequest request, size_t chunk_index, uint8_t *data, size_t chunk_length, bool final, size_t complete_length) {
@@ -2004,4 +2009,5 @@ bool ENplus::handle_update_chunk2(int command, WebServerRequest request, size_t 
 
     return true;
 }
+#endif
 
