@@ -22,9 +22,7 @@
 
 #include "task_scheduler.h"
 
-#include "api.h"
 #include "modules.h"
-#include "task_scheduler.h"
 #include "tools.h"
 
 #include "digest_auth.h"
@@ -44,24 +42,31 @@
 #define MAX_ACTIVE_USERS 10
 #endif
 
+extern TaskScheduler task_scheduler;
+uint8_t DATA_STORE_PAGE_CHARGE_TRACKER_buf[63] = {0};
+
 // We have to do access the evse/evse_v2 configs manually
 // because a lot of the code runs in setup(), i.e. before APIs
 // are registered.
 void set_data_storage(uint8_t *buf)
 {
 #if MODULE_EVSE_AVAILABLE()
-    evse.set_data_storage(DATA_STORE_PAGE_CHARGE_TRACKER, buf);
+    tf_evse_set_data_storage(&evse.device, DATA_STORE_PAGE_CHARGE_TRACKER, buf);
 #elif MODULE_EVSE_V2_AVAILABLE()
-    evse_v2.set_data_storage(DATA_STORE_PAGE_CHARGE_TRACKER, buf);
+    tf_evse_v2_set_data_storage(&evse_v2.device, DATA_STORE_PAGE_CHARGE_TRACKER, buf);
+#elif MODULE_AC011K_AVAILABLE()
+    memcpy(&DATA_STORE_PAGE_CHARGE_TRACKER_buf, buf, sizeof(DATA_STORE_PAGE_CHARGE_TRACKER_buf));
 #endif
 }
 
 void get_data_storage(uint8_t *buf)
 {
 #if MODULE_EVSE_AVAILABLE()
-    evse.get_data_storage(DATA_STORE_PAGE_CHARGE_TRACKER, buf);
+    tf_evse_get_data_storage(&evse.device, DATA_STORE_PAGE_CHARGE_TRACKER, buf);
 #elif MODULE_EVSE_V2_AVAILABLE()
-    evse_v2.get_data_storage(DATA_STORE_PAGE_CHARGE_TRACKER, buf);
+    tf_evse_v2_get_data_storage(&evse_v2.device, DATA_STORE_PAGE_CHARGE_TRACKER, buf);
+#elif MODULE_AC011K_AVAILABLE()
+    memcpy(buf, &DATA_STORE_PAGE_CHARGE_TRACKER_buf, sizeof(DATA_STORE_PAGE_CHARGE_TRACKER_buf));
 #endif
 }
 
@@ -77,6 +82,8 @@ uint8_t get_iec_state()
     return evse.evse_state.get("iec61851_state")->asUint();
 #elif MODULE_EVSE_V2_AVAILABLE()
     return evse_v2.evse_state.get("iec61851_state")->asUint();
+#elif MODULE_AC011K_AVAILABLE()
+    return ac011k.evse_state.get("iec61851_state")->asUint();
 #endif
     return 0;
 }
@@ -87,6 +94,8 @@ uint8_t get_charger_state()
     return evse.evse_state.get("charger_state")->asUint();
 #elif MODULE_EVSE_V2_AVAILABLE()
     return evse_v2.evse_state.get("charger_state")->asUint();
+#elif MODULE_AC011K_AVAILABLE()
+    return ac011k.evse_state.get("charger_state")->asUint();
 #endif
     return 0;
 }
@@ -97,6 +106,8 @@ Config *get_user_slot()
     return (Config *)evse.evse_slots.get(CHARGING_SLOT_USER);
 #elif MODULE_EVSE_V2_AVAILABLE()
     return (Config *)evse_v2.evse_slots.get(CHARGING_SLOT_USER);
+#elif MODULE_AC011K_AVAILABLE()
+    return (Config *)ac011k.evse_slots.get(CHARGING_SLOT_USER);
 #endif
     return nullptr;
 }
@@ -107,6 +118,8 @@ Config *get_low_level_state()
     return &evse.evse_low_level_state;
 #elif MODULE_EVSE_V2_AVAILABLE()
     return &evse_v2.evse_low_level_state;
+#elif MODULE_AC011K_AVAILABLE()
+    return &ac011k.evse_low_level_state;
 #endif
     return nullptr;
 }
@@ -117,6 +130,8 @@ void set_user_current(uint16_t current)
     evse.set_user_current(current);
 #elif MODULE_EVSE_V2_AVAILABLE()
     evse_v2.set_user_current(current);
+#elif MODULE_AC011K_AVAILABLE()
+    ac011k.set_user_current(current);
 #endif
 }
 
@@ -191,36 +206,7 @@ bool read_user_slot_info(UserSlotInfo *result)
     return result->version == USER_SLOT_INFO_VERSION;
 }
 
-
 volatile bool user_api_blocked = false;
-class RAIIUserApiUnblocker {
-public:
-    RAIIUserApiUnblocker(bool assume_blocked) : released(!assume_blocked) {}
-
-    ~RAIIUserApiUnblocker() {
-        if (!released)
-            user_api_blocked = false;
-
-    }
-
-    bool try_block() {
-        for(int i = 0; i < 50; ++i) {
-            if (!user_api_blocked) {
-                user_api_blocked = true;
-                released = false;
-                return true;
-            }
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-        }
-        return false;
-    }
-
-    void release() {
-        released = true;
-    }
-
-    bool released = false;
-};
 
 void Users::pre_setup()
 {
@@ -254,15 +240,20 @@ void Users::pre_setup()
     add = ConfigRoot(Config::Object({
         {"id", Config::Uint8(0)},
         {"roles", Config::Uint32(0)},
-        {"current", Config::Uint(32000, 0, 32000)},
+        {"current", Config::Uint16(32000)},
         {"display_name", Config::Str("", 0, USERNAME_LENGTH)},
         {"username", Config::Str("", 0, USERNAME_LENGTH)},
         {"digest_hash", Config::Str("", 0, 32)},
     }), [this](Config &add) -> String {
-        RAIIUserApiUnblocker unblocker{false};
-
-        if (!unblocker.try_block())
-            return "Still applying the last operation. Please retry.";
+        if (user_api_blocked) {
+            for(int i = 0; i < 50; ++i) {
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+                if (!user_api_blocked)
+                    break;
+            }
+            if (user_api_blocked)
+                return "Still applying the last operation. Please retry.";
+        }
 
         if (user_config.get("next_user_id")->asUint() == 0)
             return "Can't add user. All user IDs in use.";
@@ -288,8 +279,7 @@ void Users::pre_setup()
             }
         }
 
-        // Keep blocked for the users/add callback
-        unblocker.release();
+        user_api_blocked = true;
         return "";
     });
     add.permit_null_updates = false;
@@ -297,18 +287,22 @@ void Users::pre_setup()
     remove = ConfigRoot(Config::Object({
         {"id", Config::Uint8(0)}
     }), [this](Config &remove) -> String {
-        RAIIUserApiUnblocker unblocker{false};
-
-        if (!unblocker.try_block())
-            return "Still applying the last operation. Please retry.";
+        if (user_api_blocked) {
+            for (int i = 0; i < 50; ++i) {
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+                if (!user_api_blocked)
+                    break;
+            }
+            if (user_api_blocked)
+                return "Still applying the last operation. Please retry.";
+        }
 
         if (remove.get("id")->asUint() == 0)
             return "The anonymous user can't be removed.";
 
         for (int i = 0; i < user_config.get("users")->count(); ++i) {
             if (user_config.get("users")->get(i)->get("id")->asUint() == remove.get("id")->asUint()) {
-                // Keep blocked for the users/add callback
-                unblocker.release();
+                user_api_blocked = true;
                 return "";
             }
         }
@@ -489,10 +483,16 @@ void Users::register_urls()
     }
 
     api.addRawCommand("users/modify", [this](char *c, size_t s) -> String {
-        RAIIUserApiUnblocker unblocker{false};
-
-        if (!unblocker.try_block())
-            return "Still applying the last operation. Please retry.";
+        if (user_api_blocked) {
+            for(int i = 0; i < 50; ++i) {
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+                if (!user_api_blocked)
+                    break;
+            }
+            if (user_api_blocked)
+                return "Still applying the last operation. Please retry.";
+        }
+        user_api_blocked = true;
 
         StaticJsonDocument<96> doc;
 
@@ -501,55 +501,6 @@ void Users::register_urls()
         if (error) {
             return String("Failed to deserialize string: ") + String(error.c_str());
         }
-
-        const char * const expected_keys[] = {
-            "id",
-            "roles",
-            "current",
-            "display_name",
-            "username",
-            "digest_hash"
-        };
-
-        auto obj = doc.as<JsonObjectConst>();
-
-        for (JsonPairConst kv : obj) {
-            bool found = false;
-            for(int i = 0; i < ARRAY_SIZE(expected_keys); ++i) {
-                if (kv.key() != expected_keys[i])
-                    continue;
-
-                found = true;
-                break;
-            }
-            if (!found)
-                return String("JSON object has unknown key '") + kv.key().c_str() + "'.\n";
-        }
-
-        if (doc["id"] != nullptr && !doc["id"].is<uint32_t>())
-            return String("[\"id\"]JSON node was not an unsigned integer.");
-        if (doc["roles"] != nullptr && !doc["roles"].is<uint32_t>())
-            return String("[\"roles\"]JSON node was not an unsigned integer.");
-        if (doc["current"] != nullptr && !doc["current"].is<uint32_t>())
-            return String("[\"current\"]JSON node was not an unsigned integer.");
-        if (doc["display_name"] != nullptr && !doc["display_name"].is<String>())
-            return String("[\"display_name\"]JSON node was not a string.");
-        if (doc["username"] != nullptr && !doc["username"].is<String>())
-            return String("[\"username\"]JSON node was not a string.");
-        if (doc["digest_hash"] != nullptr && !doc["digest_hash"].is<String>())
-            return String("[\"digest_hash\"]JSON node was not a string.");
-
-        if (doc["display_name"] != nullptr && doc["display_name"].as<String>().length() > USERNAME_LENGTH)
-            return String("[\"display_name\"]String of maximum length ") + USERNAME_LENGTH + " was expected, but got " + doc["display_name"].as<String>().length();
-
-        if (doc["username"] != nullptr && doc["username"].as<String>().length() > USERNAME_LENGTH)
-            return String("[\"username\"]String of maximum length ") + USERNAME_LENGTH + " was expected, but got " + doc["username"].as<String>().length();
-
-        if (doc["digest_hash"] != nullptr && doc["digest_hash"].as<String>().length() > 32)
-            return String("[\"digest_hash\"]String of maximum length 32 was expected, but got ") + doc["digest_hash"].as<String>().length();
-
-        if (doc["current"] != nullptr && doc["current"].as<uint32_t>() > 32000)
-            return String("[\"current\"]Unsigned integer value ") + doc["current"].as<uint32_t>() + " was more than the allowed maximum of 32000";
 
         if (doc["id"] == nullptr)
             return String("Can't modify user. User ID is null or missing.");
@@ -576,14 +527,6 @@ void Users::register_urls()
 
         if (user == nullptr) {
             return "Can't modify user. User with this ID not found.";
-        }
-
-        // The digest hash is calculated with the username and password.
-        if (doc["username"] != nullptr
-         && doc["digest_hash"] == nullptr
-         && user->get("username")->asString() != doc["username"]
-         && user->get("digest_hash")->asString() != "") {
-            return String("Changing the username without updating the digest hash is not allowed!");
         }
 
         for(int i = 0; i < user_config.get("users")->count(); ++i) {
@@ -628,16 +571,13 @@ void Users::register_urls()
         if (err != "")
             return err;
 
-        // Keep blocked for the task below
-        unblocker.release();
-
         task_scheduler.scheduleOnce([this, display_name_changed, username_changed, user](){
-            // Blocked in users/modify raw command handler
-            RAIIUserApiUnblocker inner_unblocker{true};
             API::writeConfig("users/config", &user_config);
 
             if (display_name_changed || username_changed)
                 this->rename_user(user->get("id")->asUint(), user->get("username")->asString(), user->get("display_name")->asString());
+
+            user_api_blocked = false;
         }, 0);
 
         return "";
@@ -645,9 +585,6 @@ void Users::register_urls()
 
     api.addState("users/config", &user_config, {"digest_hash"}, 1000);
     api.addCommand("users/add", &add, {"digest_hash"}, [this](){
-        // Blocked in users/add validator
-        RAIIUserApiUnblocker inner_unblocker{true};
-
         user_config.get("users")->add();
         Config *user = (Config *)user_config.get("users")->get(user_config.get("users")->count() - 1);
 
@@ -662,12 +599,10 @@ void Users::register_urls()
 
         API::writeConfig("users/config", &user_config);
         this->rename_user(user->get("id")->asUint(), user->get("username")->asString(), user->get("display_name")->asString());
+        user_api_blocked = false;
     }, true);
 
     api.addCommand("users/remove", &remove, {}, [this](){
-        // Blocked in users/remove validator
-        RAIIUserApiUnblocker inner_unblocker{true};
-
         int idx = -1;
         for(int i = 0; i < user_config.get("users")->count(); ++i) {
             if (user_config.get("users")->get(i)->get("id")->asUint() == remove.get("id")->asUint()) {
@@ -684,13 +619,21 @@ void Users::register_urls()
         user_config.get("users")->remove(idx);
         API::writeConfig("users/config", &user_config);
 
+#if MODULE_AC011K_AVAILABLE()
+        Config *tags = (Config *)anfc.config.get("authorized_tags");
+#else
         Config *tags = (Config *)nfc.config.get("authorized_tags");
+#endif
 
         for(int i = 0; i < tags->count(); ++i) {
             if(tags->get(i)->get("user_id")->asUint() == remove.get("id")->asUint())
                 tags->get(i)->get("user_id")->updateUint(0);
         }
+#if MODULE_AC011K_AVAILABLE()
+        API::writeConfig("nfc/config", &anfc.config);
+#else
         API::writeConfig("nfc/config", &nfc.config);
+#endif
 
         if (!charge_tracker.is_user_tracked(remove.get("id")->asUint()))
         {
@@ -703,6 +646,8 @@ void Users::register_urls()
                 API::writeConfig("users/config", &user_config);
             }
         }
+
+        user_api_blocked = false;
     }, true);
 
 
@@ -728,34 +673,6 @@ void Users::register_urls()
         size_t read = f.read((uint8_t *)buf.get(), len);
         return request.send(200, "application/octet-stream", buf.get(), read);
     });
-
-    task_scheduler.scheduleWithFixedDelay([this]() {
-            static Config *evse_state = api.getState("evse/state", false);
-            static Config *evse_slots = api.getState("evse/slots", false);
-
-            if (evse_state == nullptr || evse_slots == nullptr)
-                return;
-
-            bool waiting_for_start = (evse_state->get("iec61851_state")->asUint() == 1)
-                                && (evse_slots->get(CHARGING_SLOT_USER)->get("active")->asBool())
-                                && (evse_slots->get(CHARGING_SLOT_USER)->get("max_current")->asUint() == 0);
-
-            if (blink_state != -1) {
-                set_led(blink_state);
-                blink_state = -1;
-            } else
-                set_led(waiting_for_start ? IND_NAG : -1);
-    }, 10, 10);
-}
-
-int16_t Users::get_blink_state()
-{
-    return blink_state;
-}
-
-void Users::set_blink_state(int16_t state)
-{
-    blink_state = state;
 }
 
 void Users::loop()
@@ -896,41 +813,4 @@ bool Users::stop_charging(uint8_t user_id, bool force)
     set_user_current(0);
 
     return true;
-}
-
-void set_led(int16_t mode)
-{
-    static int16_t last_mode = -1;
-    static uint32_t last_set = 0;
-
-    if (last_mode == mode && !deadline_elapsed(last_set + 2500))
-        return;
-
-    // sorted by priority
-    switch (mode) {
-        case IND_ACK:
-            break;
-        case IND_NACK:
-            if (last_mode == IND_ACK && !deadline_elapsed(last_set + 2340))
-                return;
-            break;
-        case IND_NAG:
-        case -1:
-            if ((last_mode == IND_ACK && !deadline_elapsed(last_set + 2340))
-                || (last_mode == IND_NACK && !deadline_elapsed(last_set + 3536)))
-                return;
-            break;
-        default:
-            break;
-    }
-
-#if MODULE_EVSE_AVAILABLE()
-    evse.set_indicator_led(mode, mode != IND_NACK ? 2620 : 3930, nullptr);
-#endif
-#if MODULE_EVSE_V2_AVAILABLE()
-    evse_v2.set_indicator_led(mode, mode != IND_NACK ? 2620 : 3930, nullptr);
-#endif
-
-    last_mode = mode;
-    last_set = millis();
 }
