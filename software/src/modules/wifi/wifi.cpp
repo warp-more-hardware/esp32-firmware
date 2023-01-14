@@ -32,14 +32,8 @@
 #include "build.h"
 #include "tools.h"
 
-extern EventLog logger;
-
-extern TaskScheduler task_scheduler;
-extern WebServer server;
 extern char local_uid_str[32];
 extern char passphrase[20];
-
-extern API api;
 
 void Wifi::pre_setup()
 {
@@ -286,8 +280,6 @@ bool Wifi::apply_sta_config_and_connect()
     dns.fromString(wifi_sta_config_in_use.get("dns")->asEphemeralCStr());
     dns2.fromString(wifi_sta_config_in_use.get("dns2")->asEphemeralCStr());
 
-    WiFi.begin(ssid.c_str(), passphrase.c_str(), 0, bssid_lock ? bssid : nullptr, false);
-
     if (ip != 0) {
         WiFi.config(ip, gateway, subnet, dns, dns2);
     } else {
@@ -519,7 +511,7 @@ void Wifi::setup()
                     backoff *= 2;
                 backoff_counter = backoff;
             }
-        }, 0, 5000);
+        }, 5000, 5000);
     }
 
     task_scheduler.scheduleWithFixedDelay([this](){

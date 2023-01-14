@@ -257,6 +257,8 @@ def main():
     firmware_url = env.GetProjectOption("custom_firmware_url")
     require_firmware_info = env.GetProjectOption("custom_require_firmware_info")
     build_flags = env.GetProjectOption("build_flags")
+    frontend_debug = env.GetProjectOption("custom_frontend_debug") == "true"
+    web_only = env.GetProjectOption("custom_web_only") == "true"
 
     try:
         oldest_version, version = get_changelog_version(name)
@@ -431,6 +433,7 @@ def main():
 
     favicon_path = None
     logo_path = None
+    branding_path = None
 
     for frontend_module in frontend_modules:
         mod_path = os.path.join('web', 'src', 'modules', frontend_module.under)
@@ -456,6 +459,15 @@ def main():
                 sys.exit(1)
 
             logo_path = potential_logo_path
+
+        potential_branding_path = os.path.join(mod_path, 'branding.ts')
+
+        if os.path.exists(potential_branding_path):
+            if branding_path != None:
+                print('Error: Branding path collision ' + potential_branding_path + ' vs ' + branding_path)
+                sys.exit(1)
+
+            branding_path = potential_branding_path
 
         if os.path.exists(os.path.join(mod_path, 'navbar.html')):
             with open(os.path.join(mod_path, 'navbar.html'), encoding='utf-8') as f:
@@ -540,12 +552,19 @@ def main():
         print('Error: Logo missing')
         sys.exit(1)
 
+    if branding_path == None:
+        print('Error: Branding missing')
+        sys.exit(1)
+
     with open(logo_path, 'rb') as f:
-        logo = b64encode(f.read()).decode('ascii')
+        logo_base64 = b64encode(f.read()).decode('ascii')
+
+    with open(branding_path, 'r') as f:
+        branding = f.read()
 
     specialize_template(os.path.join("web", "index.html.template"), os.path.join("web", "src", "index.html"), {
         '{{{favicon}}}': favicon,
-        '{{{logo}}}': logo,
+        '{{{logo_base64}}}': logo_base64,
         '{{{navbar}}}': '\n                        '.join(navbar_entries),
         '{{{content}}}': '\n                    '.join(content_entries),
         '{{{status}}}': '\n                            '.join(status_entries)
@@ -554,6 +573,7 @@ def main():
     specialize_template(os.path.join("web", "main.ts.template"), os.path.join("web", "src", "main.ts"), {
         '{{{module_imports}}}': '\n'.join(['import * as {0} from "./modules/{0}/main";'.format(x) for x in main_ts_entries]),
         '{{{modules}}}': ', '.join([x for x in main_ts_entries]),
+        '{{{preact_debug}}}': 'import "preact/debug";' if frontend_debug else ''
     })
 
     specialize_template(os.path.join("web", "main.scss.template"), os.path.join("web", "src", "main.scss"), {
@@ -566,6 +586,11 @@ def main():
         '{{{module_interface}}}': ',\n    '.join('{}: boolean'.format(x.under) for x in backend_modules),
         '{{{config_map_entries}}}': '\n    '.join(api_config_map_entries),
         '{{{api_cache_entries}}}': '\n    '.join(api_cache_entries),
+    })
+
+    specialize_template(os.path.join("web", "branding.ts.template"), os.path.join("web", "src", "ts", "branding.ts"), {
+        '{{{logo_base64}}}': logo_base64,
+        '{{{branding}}}': branding,
     })
 
     translation_str = ''
@@ -729,7 +754,7 @@ def main():
             pass
 
         with ChangedDirectory('web'):
-            subprocess.check_call([env.subst('$PYTHONEXE'), "-u", "build.py"])
+            subprocess.check_call([env.subst('$PYTHONEXE'), "-u", "build.py"] + ([] if not frontend_debug else ['--js-source-map', '--css-source-map']))
 
         with open('web/build/main.min.css', 'r', encoding='utf-8') as f:
             css = f.read()
@@ -742,12 +767,20 @@ def main():
 
         html = html.replace('<link href=css/main.css rel=stylesheet>', '<style rel=stylesheet>{0}</style>'.format(css))
         html = html.replace('<script src=js/bundle.js></script>', '<script>{0}</script>'.format(js))
+        html_bytes = html.encode('utf-8')
 
-        util.embed_data(gzip.compress(html.encode('utf-8')), 'src', 'index_html', 'char')
+        with open('web/build/index.standalone.html', 'wb') as f:
+            f.write(html_bytes)
+
+        util.embed_data(gzip.compress(html_bytes), 'src', 'index_html', 'char')
         util.store_digest(index_html_digest, 'src', 'index_html', env=env)
 
     print("Checking HTML ID usage")
     with ChangedDirectory('web'):
         subprocess.check_call([env.subst('$PYTHONEXE'), "-u", "check_id_usage.py"] + [x.under for x in frontend_modules])
+
+    if web_only:
+        print('Stopping build after web')
+        sys.exit(0)
 
 main()

@@ -76,8 +76,12 @@ export class ChargeManager extends ConfigComponent<'charge_manager/config', {}, 
             scanResult: []
         } as any;
 
-        util.eventTarget.addEventListener('evse/management_enabled', () => {
-            this.setState({managementEnabled: API.get('evse/management_enabled').enabled});
+        // Does not check if the event exists, in case the evse module is not compiled in.
+        util.eventTarget.addEventListener_unchecked('evse/management_enabled', () => {
+            let evse_enabled = API.get_maybe('evse/management_enabled');
+            if (evse_enabled != null) {
+                this.setState({managementEnabled: evse_enabled.enabled});
+            }
         });
 
         util.eventTarget.addEventListener('charge_manager/scan_result', () => {
@@ -489,7 +493,7 @@ function update_charge_manager_state() {
         let status_text = util.toLocaleFixed(s.supported_current / 1000.0, 3) + " " + __("charge_manager.script.ampere_supported");
 
         if (last_update >= 10)
-            status_text += "; " + __("charge_manager.script.last_update_prefix") + util.format_timespan(last_update) + (__("charge_manager.script.last_update_suffix"));
+            status_text += "; " + __("charge_manager.script.last_update_prefix") + " " + util.format_timespan(last_update) + (__("charge_manager.script.last_update_suffix"));
         $(`#charge_manager_status_charger_${i}_details`).text(status_text);
     }
 

@@ -28,8 +28,6 @@
 
 #include <memory>
 
-extern TaskScheduler task_scheduler;
-
 struct ChargeStart {
     uint32_t timestamp_minutes = 0;
     float meter_start = 0.0f;
@@ -81,7 +79,8 @@ void ChargeTracker::pre_setup()
     });
 
     config = Config::Object({
-        {"electricity_price", Config::Uint16(0)}
+        {"electricity_price", Config::Uint16(0)},
+        {"pdf_text", Config::Str("", 0, 500)}
     });
 }
 

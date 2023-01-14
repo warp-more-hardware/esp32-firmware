@@ -32,13 +32,6 @@
 #include "sdm72dmv2_defs.h"
 #include "sdm72dm_defs.h"
 
-extern EventLog logger;
-
-extern WebServer server;
-extern TaskScheduler task_scheduler;
-
-extern API api;
-
 static uint16_t write_buf[100];
 static uint16_t registers[400];
 
@@ -49,8 +42,6 @@ static MeterInfo *supported_meters[] = {
 };
 
 static MeterInfo *meter_in_use = nullptr;
-
-#define METER_TYPE_AUTO_DETECT 255
 
 void ModbusMeter::pre_setup()
 {
@@ -78,7 +69,7 @@ void read_meter_type_handler(struct TF_RS485 *rs485, uint8_t request_id, int8_t 
         return;
     }
 
-    if (exception_code != 0) {
+    if (exception_code != 0 && exception_code != -1) {
         logger.printfln("Request %u: Exception code %d", request_id, exception_code);
         ud->done = ModbusMeter::UserDataDone::ERROR;
         return;
@@ -237,6 +228,8 @@ void ModbusMeter::checkRS485State()
         logger.printfln("RS485 mode invalid (%u). Did the bricklet reset?", mode);
         error_counters.get("bricklet_reset")->updateUint(error_counters.get("bricklet_reset")->asUint() + 1);
         setupRS485();
+    } else if (meter_in_use == nullptr) {
+        setupRS485();
     }
 }
 
@@ -255,7 +248,7 @@ void ModbusMeter::setup()
 
     task_scheduler.scheduleWithFixedDelay([this](){
         this->checkRS485State();
-    }, 5 * 60 * 1000, 5 * 60 * 1000);
+    }, 10 * 1000, 10 * 1000);
 }
 
 void ModbusMeter::register_urls()

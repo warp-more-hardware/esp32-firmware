@@ -28,12 +28,6 @@
 #include "web_server.h"
 #include "modules.h"
 
-extern EventLog logger;
-
-extern TaskScheduler task_scheduler;
-extern WebServer server;
-
-extern API api;
 extern bool firmware_update_allowed;
 
 #define SLOT_ACTIVE(x) ((bool)(x & 0x01))
@@ -173,18 +167,6 @@ void EVSEV2::pre_setup()
         {"button", Config::Uint8(2)}
     });
 
-    evse_control_pilot_configuration = Config::Object({
-        {"control_pilot", Config::Uint8(0)}
-    });
-
-    evse_control_pilot_configuration_update = Config::Object({
-        {"control_pilot", Config::Uint8(0)}
-    });
-
-    evse_control_pilot_connected = Config::Object({
-        {"connected", Config::Bool(true)}
-    });
-
     evse_auto_start_charging = Config::Object({
         {"auto_start_charging", Config::Bool(true)}
     });
@@ -251,6 +233,22 @@ void EVSEV2::pre_setup()
         {"enabled", Config::Bool(false)}
     });
     evse_ocpp_enabled_update = evse_ocpp_enabled;
+
+    evse_ev_wakeup = Config::Object({
+        {"enabled", Config::Bool(false)}
+    });
+    evse_ev_wakeup_update = evse_ev_wakeup;
+
+    evse_boost_mode = Config::Object({
+        {"enabled", Config::Bool(false)}
+    });
+    evse_boost_mode_update = evse_boost_mode;
+
+    evse_control_pilot_disconnect = Config::Object({
+        {"disconnect", Config::Bool(false)}
+    });
+
+    evse_control_pilot_disconnect_update = evse_control_pilot_disconnect;
 }
 
 bool EVSEV2::apply_slot_default(uint8_t slot, uint16_t current, bool enabled, bool clear)
@@ -342,6 +340,33 @@ void EVSEV2::apply_defaults()
 void EVSEV2::factory_reset()
 {
     tf_evse_v2_factory_reset(&device, 0x2342FACD);
+}
+
+uint16_t EVSEV2::get_all_energy_meter_values(float *ret_values)
+{
+    uint16_t len = 0;
+    tf_evse_v2_get_all_energy_meter_values(&device, ret_values, &len);
+    return len;
+}
+
+void EVSEV2::reset_energy_meter_relative_energy()
+{
+    tf_evse_v2_reset_energy_meter_relative_energy(&device);
+}
+
+void EVSEV2::set_data_storage(uint8_t page, const uint8_t *data)
+{
+    tf_evse_v2_set_data_storage(&device, page, data);
+}
+
+void EVSEV2::get_data_storage(uint8_t page, uint8_t *data)
+{
+    tf_evse_v2_get_data_storage(&device, page, data);
+}
+
+void EVSEV2::set_indicator_led(int16_t indication, uint16_t duration, uint8_t *ret_status)
+{
+    tf_evse_v2_set_indicator_led(&device, indication, duration, ret_status);
 }
 
 void EVSEV2::setup()
@@ -665,8 +690,10 @@ void EVSEV2::register_urls()
         return;
 
 #if MODULE_CM_NETWORKING_AVAILABLE()
-    cm_networking.register_client([this](uint16_t current) {
+    cm_networking.register_client([this](uint16_t current, bool cp_disconnect_requested) {
         set_managed_current(current);
+
+        is_in_bootloader(tf_evse_v2_set_control_pilot_disconnect(&device, cp_disconnect_requested, nullptr));
     });
 
     task_scheduler.scheduleWithFixedDelay([this](){
@@ -687,7 +714,8 @@ void EVSEV2::register_urls()
             evse_low_level_state.get("charging_time")->asUint(),
             evse_slots.get(CHARGING_SLOT_CHARGE_MANAGER)->get("max_current")->asUint(),
             supported_current,
-            evse_management_enabled.get("enabled")->asBool()
+            evse_management_enabled.get("enabled")->asBool(),
+            evse_control_pilot_disconnect.get("disconnect")->asBool()
         );
     }, 1000, 1000);
 
@@ -714,7 +742,6 @@ void EVSEV2::register_urls()
     api.addState("evse/button_state", &evse_button_state, {}, 250);
     api.addState("evse/slots", &evse_slots, {}, 1000);
     api.addState("evse/indicator_led", &evse_indicator_led, {}, 1000);
-    api.addState("evse/control_pilot_connected", &evse_control_pilot_connected, {}, 1000);
 
     // Actions
     api.addCommand("evse/reset_dc_fault_current_state", &evse_reset_dc_fault_current_state, {}, [this](){
@@ -781,12 +808,23 @@ void EVSEV2::register_urls()
         is_in_bootloader(tf_evse_v2_set_button_configuration(&device, evse_button_configuration_update.get("button")->asUint()));
     }, true);
 
-    api.addState("evse/control_pilot_configuration", &evse_control_pilot_configuration, {}, 1000);
-    api.addCommand("evse/control_pilot_configuration_update", &evse_control_pilot_configuration_update, {}, [this](){
-        auto cp = evse_control_pilot_configuration_update.get("control_pilot")->asUint();
-        int rc = tf_evse_v2_set_control_pilot_configuration(&device, cp, nullptr);
-        logger.printfln("updating control pilot to %u. rc %d", cp, rc);
-        is_in_bootloader(rc);
+    api.addState("evse/ev_wakeup", &evse_ev_wakeup, {}, 1000);
+    api.addCommand("evse/ev_wakeup_update", &evse_ev_wakeup_update, {}, [this](){
+        is_in_bootloader(tf_evse_v2_set_ev_wakeup(&device, evse_ev_wakeup_update.get("enabled")->asBool()));
+    }, true);
+
+    api.addState("evse/control_pilot_disconnect", &evse_control_pilot_disconnect, {}, 1000);
+    api.addCommand("evse/control_pilot_disconnect_update", &evse_control_pilot_disconnect_update, {}, [this](){
+        if (evse_management_enabled.get("enabled")->asBool()) { // Disallow updating control pilot configuration if management is enabled because the charge manager will override the CP config every second.
+            logger.printfln("evse: Control pilot cannot be (dis)connected by API while charge management is enabled.");
+            return;
+        }
+        is_in_bootloader(tf_evse_v2_set_control_pilot_disconnect(&device, evse_control_pilot_disconnect_update.get("disconnect")->asBool(), nullptr));
+    }, true);
+
+    api.addState("evse/boost_mode", &evse_boost_mode, {}, 1000);
+    api.addCommand("evse/boost_mode_update", &evse_boost_mode_update, {}, [this](){
+        is_in_bootloader(tf_evse_v2_set_boost_mode(&device, evse_boost_mode_update.get("enabled")->asBool()));
     }, true);
 
     api.addState("evse/auto_start_charging", &evse_auto_start_charging, {}, 1000);
@@ -985,8 +1023,9 @@ void EVSEV2::update_all_data()
     uint32_t button_press_time;
     uint32_t button_release_time;
     bool button_pressed;
-    uint8_t control_pilot;
-    bool control_pilot_connected;
+    bool ev_wakeup_enabled;
+    bool control_pilot_disconnect;
+    bool boost_mode_enabled;
 
     // get_low_level_state - 57 byte
     uint8_t led_state;
@@ -1039,8 +1078,9 @@ void EVSEV2::update_all_data()
                                    &button_press_time,
                                    &button_release_time,
                                    &button_pressed,
-                                   &control_pilot,
-                                   &control_pilot_connected);
+                                   &ev_wakeup_enabled,
+                                   &control_pilot_disconnect,
+                                   &boost_mode_enabled);
 
     if (rc != TF_E_OK) {
         logger.printfln("all_data_2 %d", rc);
@@ -1201,9 +1241,10 @@ void EVSEV2::update_all_data()
     evse_button_state.get("button_release_time")->updateUint(button_release_time);
     evse_button_state.get("button_pressed")->updateBool(button_pressed);
 
-    // get_control_pilot
-    evse_control_pilot_configuration.get("control_pilot")->updateUint(control_pilot);
-    evse_control_pilot_connected.get("connected")->updateBool(control_pilot_connected);
+    evse_ev_wakeup.get("enabled")->updateBool(ev_wakeup_enabled);
+    evse_boost_mode.get("enabled")->updateBool(boost_mode_enabled);
+
+    evse_control_pilot_disconnect.get("disconnect")->updateBool(control_pilot_disconnect);
 
     // get_indicator_led
     evse_indicator_led.get("indication")->updateInt(indication);

@@ -29,6 +29,10 @@
 
 extern TaskScheduler task_scheduler;
 extern EventLog logger;
+extern TF_HAL hal;
+
+// Global definition here to match the declaration in api.h.
+API api;
 
 void API::pre_setup()
 {

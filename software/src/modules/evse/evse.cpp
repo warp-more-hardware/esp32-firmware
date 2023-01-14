@@ -28,12 +28,6 @@
 #include "web_server.h"
 #include "modules.h"
 
-extern EventLog logger;
-
-extern TaskScheduler task_scheduler;
-extern WebServer server;
-
-extern API api;
 extern bool firmware_update_allowed;
 
 #define SLOT_ACTIVE(x) ((bool)(x & 0x01))
@@ -208,6 +202,11 @@ void EVSE::pre_setup()
         {"enabled", Config::Bool(false)}
     });
     evse_ocpp_enabled_update = evse_ocpp_enabled;
+
+    evse_boost_mode = Config::Object({
+        {"enabled", Config::Bool(false)}
+    });
+    evse_boost_mode_update = evse_boost_mode;
 }
 
 bool EVSE::apply_slot_default(uint8_t slot, uint16_t current, bool enabled, bool clear)
@@ -300,6 +299,22 @@ void EVSE::factory_reset()
 {
     tf_evse_factory_reset(&device, 0x2342FACD);
 }
+
+void EVSE::set_data_storage(uint8_t page, const uint8_t *data)
+{
+    tf_evse_set_data_storage(&device, page, data);
+}
+
+void EVSE::get_data_storage(uint8_t page, uint8_t *data)
+{
+    tf_evse_get_data_storage(&device, page, data);
+}
+
+void EVSE::set_indicator_led(int16_t indication, uint16_t duration, uint8_t *ret_status)
+{
+    tf_evse_set_indicator_led(&device, indication, duration, status);
+}
+
 
 void EVSE::setup()
 {
@@ -404,6 +419,7 @@ String EVSE::get_evse_debug_line()
                                     nullptr,
                                     nullptr,
                                     nullptr,
+                                    nullptr,
                                     nullptr);
 
     if (rc != TF_E_OK) {
@@ -504,8 +520,10 @@ void EVSE::register_urls()
         return;
 
 #if MODULE_CM_NETWORKING_AVAILABLE()
-    cm_networking.register_client([this](uint16_t current) {
+    cm_networking.register_client([this](uint16_t current, bool cp_disconnect_requested) {
         set_managed_current(current);
+
+        (void)cp_disconnect_requested; // not supported
     });
 
     task_scheduler.scheduleWithFixedDelay([this](){
@@ -526,7 +544,8 @@ void EVSE::register_urls()
             evse_low_level_state.get("charging_time")->asUint(),
             evse_slots.get(CHARGING_SLOT_CHARGE_MANAGER)->get("max_current")->asUint(),
             supported_current,
-            evse_management_enabled.get("enabled")->asBool()
+            evse_management_enabled.get("enabled")->asBool(),
+            false // CP disconnect not supported
         );
     }, 1000, 1000);
 
@@ -598,6 +617,13 @@ void EVSE::register_urls()
         this->set_managed_current(evse_management_current_update.get("current")->asUint());
     }, false);
 
+    api.addState("evse/boost_mode", &evse_boost_mode, {}, 1000);
+    api.addCommand("evse/boost_mode_update", &evse_boost_mode_update, {}, [this](){
+        logger.printfln("Setting boost mode to %s", evse_boost_mode_update.get("enabled")->asBool() ? "enabled" : "disabled");
+        int rc = tf_evse_set_boost_mode(&device, evse_boost_mode_update.get("enabled")->asBool());
+        logger.printfln("rc %d", rc),
+        is_in_bootloader(rc);
+    }, true);
 
     // Configurations. Note that those are _not_ configs in the api.addPersistentConfig sense:
     // The configs are stored on the EVSE itself, not the ESP's flash.
@@ -799,6 +825,7 @@ void EVSE::update_all_data()
     uint8_t jumper_configuration;
     bool has_lock_switch;
     uint8_t evse_version;
+    bool boost_mode_enabled;
 
     // get_all_data_2 - 18 byte
     int16_t indication;
@@ -854,7 +881,8 @@ void EVSE::update_all_data()
                                     &duration,
                                     &button_press_time,
                                     &button_release_time,
-                                    &button_pressed);
+                                    &button_pressed,
+                                    &boost_mode_enabled);
 
     if (rc != TF_E_OK) {
         logger.printfln("all_data_1 %d", rc);
@@ -975,6 +1003,7 @@ void EVSE::update_all_data()
     evse_button_state.get("button_release_time")->updateUint(button_release_time);
     evse_button_state.get("button_pressed")->updateBool(button_pressed);
 
+    evse_boost_mode.get("enabled")->updateBool(boost_mode_enabled);
 
     // get_indicator_led
     evse_indicator_led.get("indication")->updateInt(indication);

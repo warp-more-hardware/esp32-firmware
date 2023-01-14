@@ -113,10 +113,12 @@ struct default_validator {
                 if ((int)x.get(i)->value.tag != slot->variantType)
                     return String(String("[") + i + "] has wrong type");
 
+        size_t i = 0;
         for (const Config &elem : *x.getVal()) {
             String err = Config::apply_visitor(default_validator{}, elem.value);
             if (err != "")
-                return err;
+                return String("[") + i + "] " + err;
+            ++i;
         }
 
         return String("");
@@ -126,8 +128,9 @@ struct default_validator {
     {
         for (const std::pair<String, Config> &elem : *x.getVal()) {
             String err = Config::apply_visitor(default_validator{}, elem.second.value);
+
             if (err != "")
-                return err;
+                return String("[\"") + elem.first.c_str() + "\"] " + err;
         }
 
         return String("");
@@ -371,7 +374,7 @@ struct from_json {
             x.getVal()->push_back(*prototype);
             String inner_error = Config::apply_visitor(from_json{arr[i], force_same_keys, permit_null_updates, false}, x.get(i)->value);
             if (inner_error != "")
-                return String("[") + i + "]" + inner_error;
+                return String("[") + i + "] " + inner_error;
         }
 
         return String("");
@@ -387,7 +390,7 @@ struct from_json {
         if (!json_node.is<JsonObject>() && is_root && x.getVal()->size() == 1) {
             String inner_error = Config::apply_visitor(from_json{json_node, force_same_keys, permit_null_updates, false}, x.getVal()->at(0).second.value);
             if (inner_error != "")
-                return String("(inferred) [\"") + x.getVal()->at(0).first + "\"] " + inner_error;
+                return String("(inferred) [\"") + x.getVal()->at(0).first + "\"] " + inner_error + "\n";
             else
                 return inner_error;
         }
@@ -397,16 +400,44 @@ struct from_json {
 
         const JsonObject obj = json_node.as<JsonObject>();
 
-        if (force_same_keys && obj.size() != x.getVal()->size())
-            return String("JSON object had ") + obj.size() + " entries instead of the expected " + x.getVal()->size();
+        String return_str = "";
+        bool more_errors = false;
 
         for (size_t i = 0; i < x.getVal()->size(); ++i) {
-            if (!force_same_keys && !obj.containsKey(x.getVal()->at(i).first))
-                continue;
+            if (!obj.containsKey(x.getVal()->at(i).first))
+            {
+                if (return_str.length() < 1000)
+                    return_str += String("JSON object is missing key '") + x.getVal()->at(i).first + "'\n";
+                else
+                    more_errors = true;
+            }
 
             String inner_error = Config::apply_visitor(from_json{obj[x.getVal()->at(i).first], force_same_keys, permit_null_updates, false}, x.getVal()->at(i).second.value);
+            if(obj.size() > 0)
+                obj.remove(x.getVal()->at(i).first);
             if (inner_error != "")
-                return String("[\"") + x.getVal()->at(i).first + "\"]" + inner_error;
+            {
+                if (return_str.length() < 1000)
+                    return_str += String("[\"") + x.getVal()->at(i).first + "\"] " + inner_error + "\n";
+                else
+                    more_errors = true;
+            }
+
+        }
+
+        for (auto i = obj.begin(); i != obj.end(); i += 1)
+        {
+            if (return_str.length() < 1000)
+                return_str += String("JSON object has unknown key '") + i->key().c_str() + "'.\n";
+            else
+                more_errors = true;
+        }
+
+        if (return_str.length() > 0)
+        {
+            if (more_errors)
+                return_str += "More errors occured that got filtered out.\n";
+            return return_str;
         }
 
         return String("");
@@ -500,7 +531,7 @@ struct from_update {
             x.getVal()->push_back(*prototype);
             String inner_error = Config::apply_visitor(from_update{&arr->elements[i]}, x.get(i)->value);
             if (inner_error != "")
-                return String("[") + i + "]" + inner_error;
+                return String("[") + i + "] " + inner_error;
         }
 
         return String("");
@@ -533,7 +564,7 @@ struct from_update {
 
             String inner_error = Config::apply_visitor(from_update{&obj->elements[obj_idx].second}, x.getVal()->at(i).second.value);
             if (inner_error != "")
-                return String("[\"") + x.getVal()->at(i).first + "\"]" + inner_error;
+                return String("[\"") + x.getVal()->at(i).first + "\"] " + inner_error;
         }
 
         return String("");

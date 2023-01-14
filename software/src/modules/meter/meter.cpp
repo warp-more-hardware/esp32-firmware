@@ -25,18 +25,11 @@
 #include "task_scheduler.h"
 #include "modules.h"
 
-extern EventLog logger;
-
-extern TaskScheduler task_scheduler;
-extern Config modules;
-
-extern API api;
-
 void Meter::pre_setup()
 {
     state = Config::Object({
         {"state", Config::Uint8(0)}, // 0 - no energy meter, 1 - initialization error, 2 - meter available
-        {"type", Config::Uint8(0)} // 0 - not available, 1 - sdm72, 2 - sdm630, 3 - sdm72v2
+        {"type", Config::Uint8(0)} // 0 - not available, 1 - sdm72, 2 - sdm630, 3 - sdm72v2, 4 - MQTT meter
     });
 
     values = Config::Object({

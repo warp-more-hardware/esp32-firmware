@@ -35,7 +35,7 @@ import { InputIndicator } from "../../ts/components/input_indicator";
 import { Switch } from "../../ts/components/switch";
 import { Button} from "react-bootstrap";
 import { CollapsedSection } from "src/ts/components/collapsed_section";
-import { EVSE_SLOT_EXTERNAL, EVSE_SLOT_GLOBAL } from "../evse_common/api";
+import { EVSE_SLOT_EXTERNAL, EVSE_SLOT_GLOBAL, EVSE_SLOT_GP_INPUT, EVSE_SLOT_SHUTDOWN_INPUT } from "../evse_common/api";
 import { InputFile } from "src/ts/components/input_file";
 
 interface EVSEState {
@@ -44,6 +44,7 @@ interface EVSEState {
     hardware_cfg: API.getType['evse/hardware_configuration'];
     slots: Readonly<API.getType['evse/slots']>;
     user_calibration: API.getType['evse/user_calibration'];
+    boost_mode: API.getType['evse/boost_mode'];
     debug_running: boolean;
     debug_status: string;
 }
@@ -74,6 +75,10 @@ export class EVSE extends Component<{}, EVSEState> {
 
         util.eventTarget.addEventListener('evse/user_calibration', () => {
             this.setState({user_calibration: API.get('evse/user_calibration')});
+        });
+
+        util.eventTarget.addEventListener('evse/boost_mode', () => {
+            this.setState({boost_mode: API.get('evse/boost_mode')});
         });
 
         util.eventTarget.addEventListener("evse/debug_header", (e) => {
@@ -159,6 +164,7 @@ export class EVSE extends Component<{}, EVSEState> {
             hardware_cfg,
             slots,
             user_calibration,
+            boost_mode,
             debug_running,
             debug_status} = s;
 
@@ -267,6 +273,15 @@ export class EVSE extends Component<{}, EVSEState> {
                                 }}/>
                     </FormRow>
 
+                    <FormRow label={__("evse.content.boost_mode_desc")} label_muted={__("evse.content.boost_mode_desc_muted")}>
+                        <Switch desc={__("evse.content.boost_mode")}
+                                checked={boost_mode.enabled}
+                                onClick={async () => {
+                                    let inverted = !boost_mode.enabled;
+                                    await API.save('evse/boost_mode', {"enabled": inverted}, __("evse.script.save_failed"));
+                                }}/>
+                    </FormRow>
+
                     <FormSeparator heading={__("evse.content.charging_current")}/>
 
                     {slots.map((slot, i) => {
@@ -289,6 +304,9 @@ export class EVSE extends Component<{}, EVSEState> {
                             value = toDisplayCurrent(slot.max_current);
                             variant = slot.max_current == min ? "warning" : "primary";
                         }
+
+                        if (i == EVSE_SLOT_GP_INPUT || i == EVSE_SLOT_SHUTDOWN_INPUT)
+                            return <></>
 
                         if (i != EVSE_SLOT_GLOBAL && i != EVSE_SLOT_EXTERNAL)
                             return <FormRow key={i} label={translate_unchecked(`evse.content.slot_${i}`)}>

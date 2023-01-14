@@ -63,7 +63,7 @@
 
             "charge_error_0": "OK",
             "charge_error_1": "Communication error",
-            "charge_error_2": "Firmware incompatible",
+            "charge_error_2": "Packet header invalid or firmware incompatible",
             "charge_error_3": "Charge management deactivated",
             "charge_error_128": "Charger unreachable",
             "charge_error_129": "Charge controller unreachable",
@@ -82,7 +82,7 @@
             "ampere_supported": "A supported",
 
             "delete": "Delete",
-            "last_update_prefix": "Unavailable since",
+            "last_update_prefix": "Unavailable for",
             "last_update_suffix": "",
             "save_failed": "Failed to save the charge manager configuration",
             "set_available_current_failed": "Failed to set the available current",

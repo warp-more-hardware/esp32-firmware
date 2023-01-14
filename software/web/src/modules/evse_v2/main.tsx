@@ -45,6 +45,9 @@ interface EVSEState {
     button_cfg: API.getType['evse/button_configuration']
     slots: Readonly<API.getType['evse/slots']>;
     gpio_cfg: API.getType['evse/gpio_configuration'];
+    ev_wakeup: API.getType['evse/ev_wakeup'];
+    boost_mode: API.getType['evse/boost_mode'];
+    control_pilot_disconnect: API.getType['evse/control_pilot_disconnect'];
     debug_running: boolean;
     debug_status: string;
 }
@@ -79,6 +82,18 @@ export class EVSEV2 extends Component<{}, EVSEState> {
 
         util.eventTarget.addEventListener('evse/button_configuration', () => {
             this.setState({button_cfg: API.get('evse/button_configuration')});
+        });
+
+        util.eventTarget.addEventListener('evse/ev_wakeup', () => {
+            this.setState({ev_wakeup: API.get('evse/ev_wakeup')});
+        });
+
+        util.eventTarget.addEventListener('evse/boost_mode', () => {
+            this.setState({boost_mode: API.get('evse/boost_mode')});
+        });
+
+        util.eventTarget.addEventListener('evse/control_pilot_disconnect', () => {
+            this.setState({control_pilot_disconnect: API.get('evse/control_pilot_disconnect')});
         });
 
         util.eventTarget.addEventListener("evse/debug_header", (e) => {
@@ -165,6 +180,9 @@ export class EVSEV2 extends Component<{}, EVSEState> {
             button_cfg,
             slots,
             gpio_cfg,
+            ev_wakeup,
+            boost_mode,
+            control_pilot_disconnect,
             debug_running,
             debug_status} = s;
 
@@ -374,6 +392,33 @@ export class EVSEV2 extends Component<{}, EVSEState> {
                                 }}
                         />
                     </FormRow>
+
+                    <FormRow label={__("evse.content.ev_wakeup_desc")} label_muted={__("evse.content.ev_wakeup_desc_muted")}>
+                        <Switch desc={__("evse.content.ev_wakeup")}
+                                checked={ev_wakeup.enabled}
+                                onClick={async () => {
+                                    let inverted = !ev_wakeup.enabled;
+                                    await API.save('evse/ev_wakeup', {"enabled": inverted}, __("evse.script.save_failed"));
+                                }}/>
+                    </FormRow>
+
+                    <FormRow label={__("evse.content.boost_mode_desc")} label_muted={__("evse.content.boost_mode_desc_muted")}>
+                        <Switch desc={__("evse.content.boost_mode")}
+                                checked={boost_mode.enabled}
+                                onClick={async () => {
+                                    let inverted = !boost_mode.enabled;
+                                    await API.save('evse/boost_mode', {"enabled": inverted}, __("evse.script.save_failed"));
+                                }}/>
+                    </FormRow>
+
+                    {/*<FormRow label={__("evse.content.control_pilot_disconnect_desc")} label_muted={__("evse.content.control_pilot_disconnect_desc_muted")}>
+                        <Switch desc={__("evse.content.control_pilot_disconnect")}
+                                checked={control_pilot_disconnect.disconnect}
+                                onClick={async () => {
+                                    let inverted = !control_pilot_disconnect.disconnect;
+                                    await API.save('evse/control_pilot_disconnect', {"disconnect": inverted}, __("evse.script.save_failed"));
+                                }}/>
+                            </FormRow>*/}
 
                     <FormSeparator heading={__("evse.content.charging_current")}/>
 

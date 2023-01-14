@@ -7,18 +7,15 @@
 #include "lib/url.h"
 
 #include "esp_websocket_client.h"
-
-
 #include "esp_crt_bundle.h"
+#include "mbedtls/base64.h"
 
 #include "modules.h"
 #include "api.h"
 #include "build.h"
-extern API api;
 
 void(*recv_cb)(char *, size_t, void *) = nullptr;
 void *recv_cb_userdata = nullptr;
-bool connected = false;
 
 enum ws_transport_opcodes {
     WS_TRANSPORT_OPCODES_CONT =  0x00,
@@ -38,11 +35,9 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
     switch (event_id) {
     case WEBSOCKET_EVENT_CONNECTED:
         logger.printfln("OCPP WEBSOCKET CONNECTED");
-        connected = true;
         break;
     case WEBSOCKET_EVENT_DISCONNECTED:
         logger.printfln("OCPP WEBSOCKET DISCONNECTED");
-        connected = false;
         break;
     case WEBSOCKET_EVENT_DATA:
         if (data->payload_len == 0)
@@ -67,7 +62,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
 }
 
 esp_websocket_client_handle_t client;
-void* platform_init(const char *websocket_url)
+void* platform_init(const char *websocket_url, const char *basic_auth_user, const char *basic_auth_pass)
 {
     esp_websocket_client_config_t websocket_cfg = {};
     websocket_cfg.uri = websocket_url;
@@ -78,12 +73,36 @@ void* platform_init(const char *websocket_url)
     websocket_cfg.pingpong_timeout_sec = 25;
     websocket_cfg.disable_pingpong_discon = false;
 
+    // Username and password are "Not supported for now".
+    //websocket_cfg.username = basic_auth_user;
+    //websocket_cfg.password = basic_auth_pass;
+    // Instead create and pass the authorization header directly.
+
+    String base64input = String(basic_auth_user) + ':' + basic_auth_pass;
+
+    size_t written = 0;
+    mbedtls_base64_encode(nullptr, 0, &written, (const unsigned char *)base64input.c_str(), base64input.length());
+
+    std::unique_ptr<char[]> buf{new char[written + 1]()}; // +1 for '\0'
+    mbedtls_base64_encode((unsigned char *) buf.get(), written + 1, &written, (const unsigned char *)base64input.c_str(), base64input.length());
+    buf[written] = '\0';
+
+    String header = "Authorization: Basic ";
+    header += buf.get();
+    header += "\r\n";
+
+    websocket_cfg.headers = header.c_str();
+
     client = esp_websocket_client_init(&websocket_cfg);
     esp_websocket_register_events(client, WEBSOCKET_EVENT_ANY, websocket_event_handler, (void *)client);
 
     esp_websocket_client_start(client);
 
     return client;
+}
+
+bool platform_has_fixed_cable(int connectorId) {
+    return true;
 }
 
 void platform_disconnect(void *ctx) {
@@ -96,14 +115,12 @@ void platform_destroy(void *ctx) {
 
 bool platform_ws_connected(void *ctx)
 {
-    return connected;
+    return esp_websocket_client_is_connected(client);
 }
 
 void platform_ws_send(void *ctx, const char *buf, size_t buf_len)
 {
-    if (esp_websocket_client_send_text(client, buf, buf_len, pdMS_TO_TICKS(1000)) != ESP_OK)
-        if (!esp_websocket_client_is_connected(client))
-            esp_websocket_client_start(client);
+    esp_websocket_client_send_text(client, buf, buf_len, pdMS_TO_TICKS(1000));
 }
 
 void platform_ws_register_receive_callback(void *ctx, void(*cb)(char *, size_t, void *), void *user_data)
@@ -468,8 +485,35 @@ void platform_remove_file(const char *name) {
     LittleFS.remove(PATH_PREFIX + name);
 }
 
-void platform_reset() {
-    logger.printfln("Ignoring reset request for now.");
+void platform_reset(bool hard) {
+    if (hard) {
+        /*
+        At receipt of a hard reset the Charge Point SHALL restart (all) the hardware, it is not required to gracefully stop
+        ongoing transaction.
+        */
+#if MODULE_EVSE_AVAILABLE()
+        evse.reset();
+#endif
+#if MODULE_EVSE_V2_AVAILABLE()
+        evse_v2.reset();
+#endif
+#if MODULE_MODBUS_METER_AVAILABLE()
+        modbus_meter.reset();
+#endif
+#if MODULE_NFC_AVAILABLE()
+        nfc.reset();
+#endif
+#if MODULE_RTC_AVAILABLE()
+        rtc.reset();
+#endif
+    }
+
+    /*
+        At receipt of a soft reset, the Charge Point SHALL [...]
+        It should then restart the application software (if possible,
+        otherwise restart the processor/controller).
+    */
+    ESP.restart();
 }
 
 void platform_register_stop_callback(void *ctx, void (*cb)(int32_t, StopReason, void *), void *user_data) {

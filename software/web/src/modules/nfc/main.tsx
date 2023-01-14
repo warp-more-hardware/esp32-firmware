@@ -61,8 +61,13 @@ export class Nfc extends ConfigComponent<'nfc/config', {}, NfcState> {
         util.eventTarget.addEventListener('nfc/seen_tags', () => {
             this.setState({seen_tags: API.get('nfc/seen_tags')});
         });
-
-        this.setState({newTag: {tag_id: "", user_id: 0, tag_type: "disabled" as any}})
+        
+        this.state = {
+            newTag: {
+                tag_id: "",
+                user_id: 0,
+                tag_type: "disabled" as any}
+        } as any;
     }
 
     setTag (i: number, val: Partial<NfcConfig['authorized_tags'][0]>){
@@ -236,7 +241,13 @@ export class Nfc extends ConfigComponent<'nfc/config', {}, NfcState> {
                             {__("nfc.content.add_tag_modal_abort")}
                         </Button>
                         <Button variant="primary"
-                                onClick={() => {this.setState({showModal: false,
+                                onClick={() => {
+                                                if (state.newTag.tag_id === "" && unauth_seen_tags.length == 1)
+                                                {
+                                                    state.newTag.tag_id = unauth_seen_tags[0].tag_id;
+                                                    state.newTag.tag_type = unauth_seen_tags[0].tag_type;
+                                                }
+                                                this.setState({showModal: false,
                                                                authorized_tags: state.authorized_tags.concat(state.newTag),
                                                                newTag: {tag_id: "", user_id: 0, tag_type: "disabled" as any}});
                                                 this.hackToAllowSave();}}>

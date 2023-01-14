@@ -31,25 +31,25 @@ render(<ConfigPageHeader prefix="energy_manager" title={__("energy_manager.conte
 function update_energy_manager_state() {
     let state = API.get('energy_manager/state');
 
-    $('#state_contactor').val(state.contactor ? "Drei Phasen aktiv (Schütz geschaltet)" : "Eine Phase aktiv (Schütz nicht geschaltet)");
+    $('#state_contactor').val(translate_unchecked(state.contactor ?  'energy_manager.content.three_phases_active' : 'energy_manager.content.one_phase_active'));
     $('#state_led_r').val(state.led_rgb[0]);
     $('#state_led_g').val(state.led_rgb[1]);
     $('#state_led_b').val(state.led_rgb[2]);
-    util.update_button_group(`btn_group_gpio0`, state.gpio_input_state[0] ? 1 : 0);
-    util.update_button_group(`btn_group_gpio1`, state.gpio_input_state[1] ? 1 : 0);
-    util.update_button_group(`btn_group_gpio2`, state.gpio_output_state ? 1 : 0);
-    $('#state_input_configuration_0').val(state.gpio_input_configuration[0]);
-    $('#state_input_configuration_1').val(state.gpio_input_configuration[1]);
+    util.update_button_group(`btn_group_gpio0`, state.gpio_input_state[0] ? 0 : 1); //intentionally inverted: the high button is the first
+    util.update_button_group(`btn_group_gpio1`, state.gpio_input_state[1] ? 0 : 1); //intentionally inverted: the high button is the first
+    util.update_button_group(`btn_group_gpio2`, state.gpio_output_state   ? 0 : 1); //intentionally inverted: the high button is the first
     $('#state_input_voltage').val(`${state.input_voltage} mV`);
     $('#state_contactor_check').val(state.contactor_check_state);
 }
 
 function update_energy_manager_config() {
-    let config = API.default_updater('energy_manager/config', ['maximum_power_from_grid', 'maximum_available_current', 'minimum_current']);
+    let config = API.default_updater('energy_manager/config', ['maximum_power_from_grid', 'maximum_available_current', 'minimum_current', 'input3_config_limit', 'input4_config_limit']);
 
     util.setNumericInput("energy_manager_config_maximum_power_from_grid", config.maximum_power_from_grid / 1000, 3);
     util.setNumericInput("energy_manager_config_maximum_available_current", config.maximum_available_current / 1000, 3);
     util.setNumericInput("energy_manager_config_minimum_current", config.minimum_current / 1000, 3);
+    util.setNumericInput("energy_manager_config_input3_config_limit", config.input3_config_limit / 1000, 3);
+    util.setNumericInput("energy_manager_config_input4_config_limit", config.input4_config_limit / 1000, 3);
 }
 
 // Only show the relevant html elements, drop-down boxes and options
@@ -76,6 +76,14 @@ function update_energy_manager_html_visibility() {
         }
     }
 
+    // Update contactor section
+    let phase_switching_config_is_dd = $('#energy_manager_config_phase_switching_mode')
+    if ($('#energy_manager_config_contactor_installed').is(':checked')) {
+        update_options(phase_switching_config_is_dd, [{value: 0, name: "automatic"}, {value: 1, name: "always_one_phase"}, {value: 2, name: "always_three_phases"}]);
+    } else {
+        update_options(phase_switching_config_is_dd, [{value: 1, name: "fixed_one_phase"}, {value: 2, name: "fixed_three_phases"}]);
+    }
+
     // Update relay section
     if($('#energy_manager_config_relay_config').val()== '1') {
         $('#energy_manager_config_relay_rules').collapse('show');
@@ -84,23 +92,60 @@ function update_energy_manager_html_visibility() {
     }
 
     let relay_config_is_dd = $('#energy_manager_config_relay_config_is')
-    let relay_config_if = $('#energy_manager_config_relay_config_if').val();
-    if((relay_config_if == '0') || (relay_config_if == '1')) {
-        update_options(relay_config_is_dd, [{"value": 0, name: "high"}, {"value": 1, name: "low"}]);
-    } else if(relay_config_if == '2') {
-        update_options(relay_config_is_dd, [{"value": 2, name: "one_phase"}, {"value": 3, name: "three_phase"}]);
-    } else if(relay_config_if == '3') {
-        update_options(relay_config_is_dd, [{"value": 4, name: "greater0"}, {"value": 5, name: "smaller0"}]);
+    let relay_config_when = $('#energy_manager_config_relay_config_when').val();
+    if((relay_config_when == '0') || (relay_config_when == '1')) {
+        update_options(relay_config_is_dd, [{value: 0, name: "high"}, {value: 1, name: "low"}]);
+    } else if(relay_config_when == '2') {
+        update_options(relay_config_is_dd, [{value: 2, name: "one_phase"}, {value: 3, name: "three_phase"}]);
+    } else if(relay_config_when == '3') {
+        update_options(relay_config_is_dd, [{value: 4, name: "greater0"}, {value: 5, name: "smaller0"}]);
     }
 
     // Update input section
-    if($('#energy_manager_config_input3_config').val() == "1") {
+    let input3_config_dd = $('#energy_manager_config_input3_config');
+    if ($('#energy_manager_config_contactor_installed').is(':checked')) {
+        update_options(input3_config_dd, [{value: 1, name: "contactor_check"}]);
+        input3_config_dd.prop("disabled", true);
+    } else {
+        update_options(input3_config_dd, [{value: 0, name: "input_unused"}, {value: 2, name: "block_charging"}, {value: 3, name: "switch_excess_charging"}, {value: 4, name: "limit_max_current"}, {value: 5, name: "override_grid_draw"}]);
+        input3_config_dd.prop("disabled", false);
+    }
+
+    let input3_config = input3_config_dd.val() as number;
+    if (input3_config >= 2) {
+        if (input3_config >= 4) {
+            if (input3_config == 4) {
+                $('#energy_manager_config_input3_rules_limit_label').html(translate_unchecked(`energy_manager.content.limit_to_current`));
+                $('#energy_manager_config_input3_rules_limit_unit').html('A');
+            } else if (input3_config == 5) {
+                $('#energy_manager_config_input3_rules_limit_label').html(translate_unchecked(`energy_manager.content.limit_grid_draw`));
+                $('#energy_manager_config_input3_rules_limit_unit').html('kW');
+            }
+            $('#energy_manager_config_input3_rules_limit').collapse('show');
+        } else {
+            // For PreAct: Currently, the limit section is always shown on page load even when no limit option is selected.
+            $('#energy_manager_config_input3_rules_limit').collapse('hide');
+        }
         $('#energy_manager_config_input3_rules').collapse('show');
     } else {
         $('#energy_manager_config_input3_rules').collapse('hide');
     }
 
-    if($('#energy_manager_config_input4_config').val() == "1") {
+    let input4_config = $('#energy_manager_config_input4_config').val() as number;
+    if (input4_config >= 2) {
+        if (input4_config >= 4) {
+            if (input4_config == 4) {
+                $('#energy_manager_config_input4_rules_limit_label').html(translate_unchecked(`energy_manager.content.limit_to_current`));
+                $('#energy_manager_config_input4_rules_limit_unit').html('A');
+            } else if (input4_config == 5) {
+                $('#energy_manager_config_input4_rules_limit_label').html(translate_unchecked(`energy_manager.content.limit_grid_draw`));
+                $('#energy_manager_config_input4_rules_limit_unit').html('kW');
+            }
+            $('#energy_manager_config_input4_rules_limit').collapse('show');
+        } else {
+            // For PreAct: Currently, the limit section is always shown on page load even when no limit option is selected.
+            $('#energy_manager_config_input4_rules_limit').collapse('hide');
+        }
         $('#energy_manager_config_input4_rules').collapse('show');
     } else {
         $('#energy_manager_config_input4_rules').collapse('hide');
@@ -204,14 +249,17 @@ export function init() {
             overrides: () => ({
                 maximum_power_from_grid: Math.round(($('#energy_manager_config_maximum_power_from_grid').val() as number) * 1000),
                 maximum_available_current: Math.round(($('#energy_manager_config_maximum_available_current').val() as number) * 1000),
-                minimum_current: Math.round(($('#energy_manager_config_minimum_current').val() as number) * 1000)
-            }),
+                minimum_current: Math.round(($('#energy_manager_config_minimum_current').val() as number) * 1000),
+                input3_config_limit: Math.round(($('#energy_manager_config_input3_config_limit').val() as number) * 1000),
+                input4_config_limit: Math.round(($('#energy_manager_config_input4_config_limit').val() as number) * 1000)
+                        }),
             error_string: __("energy_manager.script.config_failed"),
             reboot_string: __("energy_manager.script.reboot_content_changed")
         });
 
-    $("#energy_manager_config_relay_config, \
-       #energy_manager_config_relay_config_if, \
+    $("#energy_manager_config_contactor_installed, \
+       #energy_manager_config_relay_config, \
+       #energy_manager_config_relay_config_when, \
        #energy_manager_config_input3_config, \
        #energy_manager_config_input4_config"
     ).on("change", update_energy_manager_html_visibility);

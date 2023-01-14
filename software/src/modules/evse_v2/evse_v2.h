@@ -95,6 +95,12 @@ public:
 
     void factory_reset();
 
+    uint16_t get_all_energy_meter_values(float *ret_values);
+    void reset_energy_meter_relative_energy();
+    void set_data_storage(uint8_t page, const uint8_t *data);
+    void get_data_storage(uint8_t page, uint8_t *data);
+    void set_indicator_led(int16_t indication, uint16_t duration, uint8_t *ret_status);
+
     bool debug = false;
 
     ConfigRoot evse_state;
@@ -105,14 +111,11 @@ public:
     ConfigRoot evse_button_state;
     ConfigRoot evse_slots;
     ConfigRoot evse_indicator_led;
-    ConfigRoot evse_control_pilot_connected;
     ConfigRoot evse_reset_dc_fault_current_state;
     ConfigRoot evse_gpio_configuration;
     ConfigRoot evse_gpio_configuration_update;
     ConfigRoot evse_button_configuration;
     ConfigRoot evse_button_configuration_update;
-    ConfigRoot evse_control_pilot_configuration;
-    ConfigRoot evse_control_pilot_configuration_update;
     ConfigRoot evse_auto_start_charging;
     ConfigRoot evse_auto_start_charging_update;
     ConfigRoot evse_global_current;
@@ -136,6 +139,12 @@ public:
     ConfigRoot evse_modbus_enabled_update;
     ConfigRoot evse_ocpp_enabled;
     ConfigRoot evse_ocpp_enabled_update;
+    ConfigRoot evse_ev_wakeup;
+    ConfigRoot evse_ev_wakeup_update;
+    ConfigRoot evse_boost_mode;
+    ConfigRoot evse_boost_mode_update;
+    ConfigRoot evse_control_pilot_disconnect;
+    ConfigRoot evse_control_pilot_disconnect_update;
 
     uint32_t last_current_update = 0;
     bool shutdown_logged = false;

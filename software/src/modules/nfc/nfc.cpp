@@ -40,18 +40,8 @@
 #define AUTHORIZED_TAG_LIST_LENGTH 8
 #endif
 
-#define IND_ACK 1001
-#define IND_NACK 1002
-#define IND_NAG 1003
-
 #define TOKEN_LIFETIME_MS 30000
 #define DETECTION_THRESHOLD_MS 1000
-
-extern EventLog logger;
-
-extern TaskScheduler task_scheduler;
-
-extern API api;
 
 void NFC::pre_setup()
 {
@@ -179,43 +169,6 @@ uint8_t NFC::get_user_id(tag_info_t *tag, uint8_t *tag_idx)
     return 0;
 }
 
-void set_led(int16_t mode)
-{
-    static int16_t last_mode = -1;
-    static uint32_t last_set = 0;
-
-    if (last_mode == mode && !deadline_elapsed(last_set + 2500))
-        return;
-
-    // sorted by priority
-    switch (mode) {
-        case IND_ACK:
-            break;
-        case IND_NACK:
-            if (last_mode == IND_ACK && !deadline_elapsed(last_set + 2340))
-                return;
-            break;
-        case IND_NAG:
-        case -1:
-            if ((last_mode == IND_ACK && !deadline_elapsed(last_set + 2340))
-                || (last_mode == IND_NACK && !deadline_elapsed(last_set + 3536)))
-                return;
-            break;
-        default:
-            break;
-    }
-
-#if MODULE_EVSE_AVAILABLE()
-    tf_evse_set_indicator_led(&evse.device, mode, mode != IND_NACK ? 2620 : 3930, nullptr);
-#endif
-#if MODULE_EVSE_V2_AVAILABLE()
-    tf_evse_v2_set_indicator_led(&evse_v2.device, mode, mode != IND_NACK ? 2620 : 3930, nullptr);
-#endif
-
-    last_mode = mode;
-    last_set = millis();
-}
-
 void NFC::handle_event(tag_info_t *tag, bool found, bool injected)
 {
     uint8_t idx = 0;
@@ -226,7 +179,7 @@ void NFC::handle_event(tag_info_t *tag, bool found, bool injected)
             // Found a new authorized tag. Create/overwrite auth token. Overwrite blink state even if we previously saw a not authorized tag.
             auth_token = idx;
             auth_token_seen = millis();
-            blink_state = IND_ACK;
+            users.set_blink_state(IND_ACK);
             users.trigger_charge_action(user_id, injected ? CHARGE_TRACKER_AUTH_TYPE_NFC_INJECTION : CHARGE_TRACKER_AUTH_TYPE_NFC, Config::Object({
                     {"tag_type", Config::Uint8(tag->tag_type)},
                     {"tag_id", Config::Str(tag->tag_id)}}).value,
@@ -243,29 +196,10 @@ void NFC::handle_event(tag_info_t *tag, bool found, bool injected)
         ocpp.on_tag_seen(tag->tag_id);
 #endif
         // Found a not authorized tag. Blink NACK but only if we did not see an authorized token
-        if (blink_state == -1) {
-            blink_state = IND_NACK;
+        if (users.get_blink_state() == -1) {
+            users.set_blink_state(IND_NACK);
         }
     }
-}
-
-void NFC::handle_evse()
-{
-    static Config *evse_state = api.getState("evse/state", false);
-    static Config *evse_slots = api.getState("evse/slots", false);
-
-    if (evse_state == nullptr || evse_slots == nullptr)
-        return;
-
-    bool waiting_for_start = (evse_state->get("iec61851_state")->asUint() == 1)
-                          && (evse_slots->get(CHARGING_SLOT_USER)->get("active")->asBool())
-                          && (evse_slots->get(CHARGING_SLOT_USER)->get("max_current")->asUint() == 0);
-
-    if (blink_state != -1) {
-        set_led(blink_state);
-        blink_state = -1;
-    } else
-        set_led(waiting_for_start ? IND_NAG : -1);
 }
 
 const char *lookup = "0123456789ABCDEF";
@@ -403,7 +337,6 @@ void NFC::setup()
             last_run = millis();
             this->update_seen_tags();
         }
-        this->handle_evse();
     }, 10, 10);
 }
 
