@@ -48,7 +48,7 @@ extern API api;
 
 void replyToServer(void *arg)
 {
-	AsyncClient *client = reinterpret_cast<AsyncClient *>(arg);
+    AsyncClient *client = reinterpret_cast<AsyncClient *>(arg);
     // prepare the http get
     String payload = 
         String("GET ") + 
@@ -58,12 +58,12 @@ void replyToServer(void *arg)
         "&timer=22 HTTP/1.1\n" +
         // add the host header
         "Host: " + _host + "\n\n";
-	// send reply
-	if (client->space() > strlen(payload.c_str()) && client->canSend())
-	{
-		client->add(payload.c_str(), strlen(payload.c_str()));
-		client->send();
-	}
+    // send reply
+    if (client->space() > strlen(payload.c_str()) && client->canSend())
+    {
+        client->add(payload.c_str(), strlen(payload.c_str()));
+        client->send();
+    }
 }
 
 void handleData(void *arg, AsyncClient *client, void *data, size_t len)
@@ -73,12 +73,12 @@ void handleData(void *arg, AsyncClient *client, void *data, size_t len)
     /* reply[len] = 0; // Null termination. */
 
     //logger.printfln("<%s: %s", client->remoteIP().toString().c_str(), reply);
-	//Serial.write((uint8_t *)data, len);
+    //Serial.write((uint8_t *)data, len);
 }
 
 void onConnect(void *arg, AsyncClient *client)
 {
-	replyToServer(client);
+    replyToServer(client);
 }
 
 
@@ -106,8 +106,8 @@ void ShellyDuo::pre_setup()
 
 void ShellyDuo::setup()
 {
-	client_tcp->onData(handleData, client_tcp);
-	client_tcp->onConnect(onConnect, client_tcp);
+    client_tcp->onData(handleData, client_tcp);
+    client_tcp->onConnect(onConnect, client_tcp);
 
     if(!api.restorePersistentConfig("shellyduo/config", &shellyduo_config)) {
          logger.printfln("Status light error, could not restore persistent config, defaults to disabled.");
@@ -142,7 +142,7 @@ void ShellyDuo::loop()
 void ShellyDuo::sendCommand() {
     if (initialized) {
         shellyduo_config.get("host")->asString() + "\n\n";
-       	client_tcp->connect(shellyduo_config.get("host")->asString().c_str(), 80);
+        client_tcp->connect(shellyduo_config.get("host")->asString().c_str(), 80);
         client_tcp->close();
     }
 }
