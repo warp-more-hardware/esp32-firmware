@@ -298,11 +298,7 @@ void AC011K::Serial2write(byte *data, int size) {
     }
 }
 
-void AC011K::sendCommand(byte *data, int datasize, byte sendSequenceNumber) {
-    sendCommand(ac011k_hardware.config.get("verbose_communication")->asBool(), data, datasize, sendSequenceNumber);
-}
-
-void AC011K::sendCommand(bool verbose, byte *data, int datasize, byte sendSequenceNumber) {
+void AC011K::sendCommand(byte *data, int datasize, byte sendSequenceNumber, bool verbose = true) {
     PrivCommTxBuffer[4] = data[0]; // command code
     PrivCommTxBuffer[5] = sendSequenceNumber;
     PrivCommTxBuffer[6] = (datasize-1) & 0xFF;
@@ -350,11 +346,7 @@ void AC011K::sendCommand(bool verbose, byte *data, int datasize, byte sendSequen
     Serial2write(data, datasize + 9);
 }
 
-void AC011K::PrivCommSend(byte cmd, uint16_t datasize, byte *data) {
-    PrivCommSend(ac011k_hardware.config.get("verbose_communication")->asBool(), cmd, datasize, data);
-}
-
-void AC011K::PrivCommSend(bool verbose, byte cmd, uint16_t datasize, byte *data) {
+void AC011K::PrivCommSend(byte cmd, uint16_t datasize, byte *data, bool verbose = true) {
     // the first 4 bytes never change and should be set already
     data[4] = cmd;
     //data[5] = sendSequence-1;
@@ -410,7 +402,7 @@ void AC011K::sendTime(byte cmd, byte action, byte len, byte sendSequenceNumber) 
     TimeAck[1] = action;
     fillTimeGdCommand(&TimeAck[2]);
     // TimeAck[8] to TimeAck[11] are always 0
-    sendCommand(false, TimeAck, len, sendSequenceNumber);
+    sendCommand(TimeAck, len, sendSequenceNumber, false);
 }
 
 void AC011K::fillTimeGdCommand(byte *datetime) {
@@ -446,7 +438,7 @@ void AC011K::fillTimeGdCommand(byte *datetime) {
 }
 
 void AC011K::GetRTC() {
-    sendCommand(false, GetRtc, sizeof(GetRtc), sendSequenceNumber++);
+    sendCommand(GetRtc, sizeof(GetRtc), sendSequenceNumber++, false);
 }
 
 void AC011K::SetRTC() {
@@ -456,7 +448,7 @@ void AC011K::SetRTC() {
     PrivCommTxBuffer[PayloadStart + 2] = 0x06;
     PrivCommTxBuffer[PayloadStart + 3] = 0x00;
     fillTimeGdCommand(&PrivCommTxBuffer[PayloadStart + 4]);
-    PrivCommSend(false, 0xAA, 10, &PrivCommTxBuffer[0]);
+    PrivCommSend(0xAA, 10, &PrivCommTxBuffer[0], false);
 }
 
 void AC011K::SetRTC(timeval time) {
@@ -467,21 +459,21 @@ void AC011K::SetRTC(timeval time) {
 void AC011K::sendChargingLimit1(uint8_t currentLimit, byte sendSequenceNumber) {  // AF 00 date/time
     fillTimeGdCommand(&ChargingLimit1[2]);
     ChargingLimit1[17] = currentLimit;
-    sendCommand(false, ChargingLimit1, sizeof(ChargingLimit1), sendSequenceNumber);
+    sendCommand(ChargingLimit1, sizeof(ChargingLimit1), sendSequenceNumber, false);
 }
 
 void AC011K::sendChargingLimit2(uint8_t currentLimit, byte sendSequenceNumber) {  // AD 00
 //    ChargingLimit2[2] = 8;  // charging profile ID - 0x41 for 1.0.1435 ?
     fillTimeGdCommand(&ChargingLimit2[55]);
     ChargingLimit2[65] = currentLimit;
-    sendCommand(false, ChargingLimit2, sizeof(ChargingLimit2), sendSequenceNumber);
+    sendCommand(ChargingLimit2, sizeof(ChargingLimit2), sendSequenceNumber, false);
 }
 
 void AC011K::sendChargingLimit3(uint8_t currentLimit, byte sendSequenceNumber) {  //  AD 01 91
     fillTimeGdCommand(&ChargingLimit3[56]);
     ChargingLimit3[56] = ChargingLimit3[56] +100;  // adds 100 to the year, because it starts at the year 1900
     ChargingLimit3[70] = currentLimit;
-    sendCommand(false, ChargingLimit3, sizeof(ChargingLimit3), sendSequenceNumber);
+    sendCommand(ChargingLimit3, sizeof(ChargingLimit3), sendSequenceNumber, false);
 }
 
 
@@ -504,7 +496,7 @@ int AC011K::bs_evse_start_charging() {
         case 812:
         case 888:
         case 1435:
-            sendCommand(false, StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++);
+            sendCommand(StartChargingA6, sizeof(StartChargingA6), sendSequenceNumber++, false);
             break;
     }
     return 0;
@@ -512,7 +504,7 @@ int AC011K::bs_evse_start_charging() {
 
 int AC011K::bs_evse_stop_charging() {
     logger.printfln("EVSE stop charging");
-    sendCommand(false, StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++);
+    sendCommand(StopChargingA6, sizeof(StopChargingA6), sendSequenceNumber++, false);
     return 0;
 }
 
@@ -725,7 +717,7 @@ bool AC011K::handle_update_chunk(int command, WebServerRequest request, size_t c
     if(chunk_index == 0) {
         logger.printfln("EVSE RemoteUpdate, reset into boot mode");
         RemoteUpdate[7] = 5; // Reset into boot mode
-        sendCommand(false, RemoteUpdate, sizeof(RemoteUpdate), sendSequenceNumber++);
+        sendCommand(RemoteUpdate, sizeof(RemoteUpdate), sendSequenceNumber++, false);
 
         size_t chunk_offset = 0 + 0x8000;
         size_t length = gd_firmware_len - 0x8000;
@@ -759,7 +751,7 @@ bool AC011K::handle_update_chunk(int command, WebServerRequest request, size_t c
             memcpy(FlashVerify+11, gd_firmware_1_2_460 + chunk_offset, maxlength);  // firmware file for upload button
 
             MAXLENGTH = maxlength;
-            sendCommand(false, FlashVerify, maxlength+11, sendSequenceNumber++); // next chunk (11 bytes header) 
+            sendCommand(FlashVerify, maxlength+11, sendSequenceNumber++, false); // next chunk (11 bytes header) 
             flash_seq = PrivCommTxBuffer[5];
             last_flash = millis();
             ready_for_next_chunk = false;
@@ -1202,7 +1194,7 @@ void AC011K::loop()
                         PrivCommRxBuffer[PayloadStart + 7]
                 );
                 logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X - RFID card detected. ID: %s", cmd, seq, len, crc, str);
-                sendCommand(false, CardAuthAckA5, sizeof(CardAuthAckA5), seq); // offline charging cfgAllowOfflineTxForUnknownId Disabled
+                sendCommand(CardAuthAckA5, sizeof(CardAuthAckA5), seq, false); // offline charging cfgAllowOfflineTxForUnknownId Disabled
                 api.callCommand("nfc/inject_tag", Config::ConfUpdateObject{{
                     {"tag_type", 0},
                     {"tag_id", String(str)}
@@ -1237,7 +1229,7 @@ void AC011K::loop()
                 //if (PrivCommRxBuffer[72] == 0x10) cmdText = "- Stop charging approval"; else cmdText = "- Start charging approval";
                 if (PrivCommRxBuffer[72] == 0) {
                     logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X - Start charging approval", cmd, seq, len, crc);
-                    sendCommand(false, StartChargingA7, sizeof(StartChargingA7), seq);
+                    sendCommand(StartChargingA7, sizeof(StartChargingA7), seq, false);
 #ifdef EXPERIMENTAL
 // experimental:
                     send_http(String(",\"type\":\"en+07\",\"data\":{")
@@ -1250,7 +1242,7 @@ void AC011K::loop()
 #endif
                 } else {
                     logger.printfln("Rx cmd_%.2X seq:%.2X len:%d crc:%.4X - Stop charging approval", cmd, seq, len, crc);
-                    sendCommand(false, StopChargingA7, sizeof(StopChargingA7), seq);
+                    sendCommand(StopChargingA7, sizeof(StopChargingA7), seq, false);
                 }
                 break;
 
@@ -1370,7 +1362,7 @@ void AC011K::loop()
                 );
 // end experimental
 #endif
-                sendCommand(false, TransactionAck, sizeof(TransactionAck), seq);
+                sendCommand(TransactionAck, sizeof(TransactionAck), seq, false);
                 break;
 
             case 0x0A:
