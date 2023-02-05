@@ -1256,9 +1256,9 @@ void AC011K::loop()
                     if(ac011k_hardware.config.get("verbose_communication")->asBool()) { // we may be silent for the heartbeat //TODO show it at first and after an hour?
                         logger.printfln("Rx cmd_%.2X %dWh\t%d\t%dWh\t%d\t%d\t%d\t%dW\t%d\t%.1fV\t%.1fV\t%.1fV\t%.1fA\t%.1fA\t%.1fA\t%d minutes",
                             cmd,
-                            PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh
+                            PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85],  // charged energy Wh (session?)
                             PrivCommRxBuffer[86]+256*PrivCommRxBuffer[87],
-                            PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89],  // charged energy Wh
+                            PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89],  // charged energy Wh (total, but will not survive GD reboots) 
                             PrivCommRxBuffer[90]+256*PrivCommRxBuffer[91],
                             PrivCommRxBuffer[92]+256*PrivCommRxBuffer[93],
                             PrivCommRxBuffer[94]+256*PrivCommRxBuffer[95],
@@ -1284,11 +1284,41 @@ void AC011K::loop()
                     meter.updateMeterAllValues(METER_ALL_VALUES_CURRENT_L3_A, float(PrivCommRxBuffer[110]+256*PrivCommRxBuffer[111])/10);
 
                     // meter power
+                    static float prev_energy_rel_raw;
+                    static float prev_energy_abs_raw;
+                    float energy_rel_raw = float(PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85])/1000;
+                    float energy_abs_raw = float(PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89])/1000;
+
+                    // detect meter restart
+                    if (energy_rel_raw < ac011k_hardware.meter.get("energy_rel_raw")->asFloat()) { ac011k_hardware.meter.get("energy_rel_delta")->updateFloat(ac011k_hardware.meter.get("energy_rel")->asFloat()); }
+                    if (energy_abs_raw < ac011k_hardware.meter.get("energy_abs_raw")->asFloat()) { ac011k_hardware.meter.get("energy_abs_delta")->updateFloat(ac011k_hardware.meter.get("energy_abs")->asFloat()); }
+
+                    // persist meter on change
+                    if ((prev_energy_rel_raw != energy_rel_raw) || (prev_energy_abs_raw != energy_abs_raw)) {
+                        if(ac011k_hardware.config.get("verbose_communication")->asBool()) {
+                            logger.printfln(" energy_rel: %.1fWh, energy_rel_raw: %.1fWh, energy_rel_delta: %.1fWh, energy_abs: %.1fWh, energy_abs_raw: %.1fWh, energy_abs_delta: %.1fWh", 
+                                1000 * ac011k_hardware.meter.get("energy_rel")->asFloat(),
+                                1000 * ac011k_hardware.meter.get("energy_rel_raw")->asFloat(),
+                                1000 * ac011k_hardware.meter.get("energy_rel_delta")->asFloat(),
+                                1000 * ac011k_hardware.meter.get("energy_abs")->asFloat(),
+                                1000 * ac011k_hardware.meter.get("energy_abs_raw")->asFloat(),
+                                1000 * ac011k_hardware.meter.get("energy_abs_delta")->asFloat());
+                        }
+                        prev_energy_rel_raw = energy_rel_raw;
+                        prev_energy_abs_raw = energy_abs_raw;
+                        api.writeConfig("ac011k_hardware/meter", &ac011k_hardware.meter);
+                    }
+
+                    ac011k_hardware.meter.get("energy_rel_raw")->updateFloat(energy_rel_raw);
+                    ac011k_hardware.meter.get("energy_abs_raw")->updateFloat(energy_abs_raw);
+                    ac011k_hardware.meter.get("energy_rel")->updateFloat(energy_rel_raw + ac011k_hardware.meter.get("energy_rel_delta")->asFloat());
+                    ac011k_hardware.meter.get("energy_abs")->updateFloat(energy_abs_raw + ac011k_hardware.meter.get("energy_abs_delta")->asFloat());
+
                     meter.updateMeterValues(
-                              (PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97]),             // charging power W  (power)
-                              float(PrivCommRxBuffer[84]+256*PrivCommRxBuffer[85])/1000, // charged energy Wh (energy_rel)
-                              float(PrivCommRxBuffer[88]+256*PrivCommRxBuffer[89])/1000  // charged energy Wh (energy_abs)
-                              );
+                        PrivCommRxBuffer[96]+256*PrivCommRxBuffer[97],       // charging power W
+                        ac011k_hardware.meter.get("energy_rel")->asFloat(),  // charged energy Wh
+                        ac011k_hardware.meter.get("energy_abs")->asFloat()); // charged energy Wh
+
                     /*
                     meter.updateMeterAllValues(i, all_values_update.get(i)->asFloat());
                     */
