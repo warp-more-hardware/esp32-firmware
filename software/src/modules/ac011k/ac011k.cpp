@@ -1448,12 +1448,15 @@ void AC011K::loop()
 
             case 0x0C:
                 /*
-                              0  1  2  3  4  5  6  7  8  9  0  10 11 12 13 14 
+                              0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 
                          000: FA 03 00 00 0C 02 05 00 11 09 01 00 00 73 79            CtrlGetS20OpenStop -> Off
                          000: FA 03 00 00 0C 03 05 00 11 0A 01 00 00 B2 F1            CtrlGetS20OPENLOCK -> Off
                          000: FA 03 00 00 0C 01 05 00 11 0B 01 00 00 32 D4            CtrlGetRemoteStart -> Off
                          000: FA 03 00 00 0C 04 05 00 11 0C 01 00 00 F3 9F            CtrlGetOfflineStop -> Off
                          000: FA 03 00 00 0C 06 08 00 11 0D 04 00 B8 0B 00 00 46 76   CtrlGetOfflineEnergy -> 0x0bb8 = 3000Wh
+
+                         for all 0C cases, the data field is like this:
+                         0C ss reclen_lo reclen_hi type subcmd datalen_lo datalen_hi (data in case data_len is >0) .... crc
                  */ 
                 switch( PrivCommRxBuffer[9] ) {
                     case 0x09:
@@ -1469,7 +1472,8 @@ void AC011K::loop()
                         logger.printfln("CtrlGetOfflineStop = %d", PrivCommRxBuffer[12]);
                         break;
                     case 0x0D:
-                        logger.printfln("CtrlGetOfflineEnergy %dWh", PrivCommRxBuffer[12]+256*PrivCommRxBuffer[13]);
+                        logger.printfln("CtrlGetOfflineEnergy %dWh",
+                            (uint16_t)(PrivCommRxBuffer[14]<<24 | PrivCommRxBuffer[15]<<16 | PrivCommRxBuffer[12]<<8 | PrivCommRxBuffer[13]));
                         break;
                 }
                 break;
