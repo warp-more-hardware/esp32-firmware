@@ -393,7 +393,7 @@ uint16_t AC011K::getPrivCommRxBufferUint16(uint16_t index) {
 }
 
 uint32_t AC011K::getPrivCommRxBufferUint32(uint16_t index) {
-    return (uint32_t)(PrivCommRxBuffer[index+2]<<24 | PrivCommRxBuffer[index+3]<<16 | PrivCommRxBuffer[index]<<8 | PrivCommRxBuffer[index+1]);
+    return (uint32_t)(PrivCommRxBuffer[index+3]<<24 | PrivCommRxBuffer[index+2]<<16 | PrivCommRxBuffer[index+1]<<8 | PrivCommRxBuffer[index]);
 }
 
 void AC011K::sendTime(byte cmd, byte action, byte len, byte sendSequenceNumber) {
@@ -1514,8 +1514,7 @@ void AC011K::loop()
                         logger.printfln("CtrlGetOfflineStop = %d", PrivCommRxBuffer[12]);
                         break;
                     case 0x0D:
-                        logger.printfln("CtrlGetOfflineEnergy %dWh",
-                            (uint16_t)(PrivCommRxBuffer[14]<<24 | PrivCommRxBuffer[15]<<16 | PrivCommRxBuffer[12]<<8 | PrivCommRxBuffer[13]));
+                        logger.printfln("CtrlGetOfflineEnergy %dWh", getPrivCommRxBufferUint32(12));
                         break;
                 }
                 break;
