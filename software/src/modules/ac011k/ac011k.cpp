@@ -1307,12 +1307,12 @@ void AC011K::loop()
                         +",\"ddd\":"+String(getPrivCommRxBufferUint16(94))
                         +",\"power\":"+String(getPrivCommRxBufferUint16(96))    // charging power
                         +",\"eee\":"+String(getPrivCommRxBufferUint16(98))
-                        +",\"u1\":"+String(float(getPrivCommRxBufferUint16(100))/10,1)  // L1 plug voltage * 10
-                        +",\"u2\":"+String(float(getPrivCommRxBufferUint16(102))/10,1)  // L2 plug voltage * 10
-                        +",\"u3\":"+String(float(getPrivCommRxBufferUint16(104))/10,1)  // L3 plug voltage * 10
-                        +",\"i1\":"+String(float(getPrivCommRxBufferUint16(106))/10,1)  // L1 charging current * 10
-                        +",\"i2\":"+String(float(getPrivCommRxBufferUint16(108))/10,1)  // L2 charging current * 10
-                        +",\"i3\":"+String(float(getPrivCommRxBufferUint16(110))/10,1)  // L3 charging current * 10
+                        +",\"u1\":"+String(float(getPrivCommRxBufferUint16(100))/10.0,1)  // L1 plug voltage * 10
+                        +",\"u2\":"+String(float(getPrivCommRxBufferUint16(102))/10.0,1)  // L2 plug voltage * 10
+                        +",\"u3\":"+String(float(getPrivCommRxBufferUint16(104))/10.0,1)  // L3 plug voltage * 10
+                        +",\"i1\":"+String(float(getPrivCommRxBufferUint16(106))/10.0,1)  // L1 charging current * 10
+                        +",\"i2\":"+String(float(getPrivCommRxBufferUint16(108))/10.0,1)  // L2 charging current * 10
+                        +",\"i3\":"+String(float(getPrivCommRxBufferUint16(110))/10.0,1)  // L3 charging current * 10
                         +",\"minutes\":"+String(getPrivCommRxBufferUint16(113))
                         +"}}"
                     );
