@@ -258,6 +258,19 @@ def main():
     require_firmware_info = env.GetProjectOption("custom_require_firmware_info")
     build_flags = env.GetProjectOption("build_flags")
 
+    process = subprocess.Popen(["git", "branch", "--show-current"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    current_branch, err = process.communicate()
+    if process.wait() != 0:
+        print('Error: Could not get current git branch: {0}'.format(err))
+        sys.exit(1)
+
+    process = subprocess.Popen(["git", "describe", "--dirty=-{}-{}".format(str(current_branch.decode("utf-8").strip()), time.strftime('%Y-%m-%d-%H:%M:%S', time.localtime(timestamp)).strip())], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    git_describe, err = process.communicate()
+    if process.wait() != 0:
+        print('Error: Could not get git describe output: {0}'.format(err))
+        sys.exit(1)
+    git_describe = str(git_describe.decode("utf-8").strip())
+
     try:
         oldest_version, version = get_changelog_version(name)
     except Exception as e:
@@ -342,18 +355,22 @@ def main():
         f.write('uint32_t build_timestamp(void);\n')
         f.write('const char *build_timestamp_hex_str(void);\n')
         f.write('const char *build_version_full_str(void);\n')
+        f.write('const char *build_git_describe_str(void);\n')
 
     with open(os.path.join('src', 'build.cpp'), 'w', encoding='utf-8') as f:
         f.write('#include "build.h"\n')
         f.write('uint32_t build_timestamp(void) {{ return {}; }}\n'.format(timestamp))
         f.write('const char *build_timestamp_hex_str(void) {{ return "{:x}"; }}\n'.format(timestamp))
         f.write('const char *build_version_full_str(void) {{ return "{}.{}.{}-{:x}"; }}\n'.format(*version, timestamp))
+        f.write('const char *build_git_describe_str(void) {{ return "{}"; }}\n'.format(git_describe))
 
     with open(os.path.join(env.subst('$BUILD_DIR'), 'firmware_basename'), 'w', encoding='utf-8') as f:
         if not_for_distribution:
-            f.write('{}_firmware-WITH-WIFI-PASSPHRASE-DO-NOT-DISTRIBUTE_{}_{:x}'.format(name, '_'.join(version), timestamp))
+            #f.write('{}_firmware-WITH-WIFI-PASSPHRASE-DO-NOT-DISTRIBUTE_{}_{:x}'.format(name, '_'.join(version), timestamp))
+            f.write('{}_firmware-WITH-WIFI-PASSPHRASE-DO-NOT-DISTRIBUTE_{}_{:x}_{}'.format(name, '_'.join(version), timestamp, git_describe))
         else:
-            f.write('{}_firmware_{}_{:x}'.format(name, '_'.join(version), timestamp))
+            #f.write('{}_firmware_{}_{:x}'.format(name, '_'.join(version), timestamp, ))
+            f.write('{}_firmware_{}_{:x}_{}'.format(name, '_'.join(version), timestamp, git_describe))
 
     # Handle backend modules
     excluded_backend_modules = list(os.listdir('src/modules'))

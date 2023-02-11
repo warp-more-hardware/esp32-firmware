@@ -789,6 +789,7 @@ void AC011K::pre_setup() {
 }
 
 void AC011K::setup() {
+    logger.printfln("This is BUILD %s.", build_git_describe_str());
     evse.setup_evse();
     evse.update_all_data();
     evse.setup();
