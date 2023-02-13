@@ -30,6 +30,7 @@
 #include "tools.h"
 #include "build.h"
 #include "modules.h"
+#include "web_server.h"
 
 #include "./crc32.h"
 #include "./recovery_html.embedded.h"
@@ -38,12 +39,6 @@
 #include <freertos/task.h>
 
 extern const char *DISPLAY_NAME;
-
-extern API api;
-extern EventLog logger;
-
-extern WebServer server;
-extern TaskScheduler task_scheduler;
 
 extern bool firmware_update_allowed;
 extern bool factory_reset_requested;
@@ -86,9 +81,6 @@ void factory_reset()
 #endif
 #if MODULE_EVSE_V2_AVAILABLE()
     evse_v2.factory_reset();
-#endif
-#if MODULE_AC011K_AVAILABLE()
-    ac011k.factory_reset();
 #endif
 
     LittleFS.end();
@@ -390,9 +382,6 @@ void FirmwareUpdate::register_urls()
 #endif
 #if MODULE_EVSE_V2_AVAILABLE()
             evse_v2.factory_reset();
-#endif
-#if MODULE_AC011K_AVAILABLE()
-            ac011k.factory_reset();
 #endif
 
 #if MODULE_USERS_AVAILABLE()
