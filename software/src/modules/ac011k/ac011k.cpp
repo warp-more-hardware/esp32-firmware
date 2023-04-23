@@ -808,11 +808,9 @@ void AC011K::evse_slot_machine() {
     // plugged out
     if((last_iec61851_state != IEC_STATE_A) && (evse.evse_state.get("iec61851_state")->asUint() == IEC_STATE_A)) {
         bs_evse_stop_charging();
-        if (true || evse.evse_hardware_configuration.get("GDFirmwareVersion")->asUint() == 212) {
+        if (evse.evse_hardware_configuration.get("GDFirmwareVersion")->asUint() == 212)
             //sendChargingLimit2(16, sendSequenceNumber++);  // hack to ensure full current range is available in next charging session 
-            logger.printfln("EVSE crank up the allowed charging current to 16A via 'cmd AD 01 91' as a workaround.");
             sendChargingLimit3(16, sendSequenceNumber++);  // hack to ensure full current range is available in next charging session
-        }
     }
 
     if(last_allowed_charging_current != allowed_charging_current) {
@@ -1070,9 +1068,6 @@ void AC011K::setup() {
     sprintf((char*)StopChargingA7  +1, "%06d", transactionNumber);
     sprintf((char*)StopChargingA6 +33, "%06d", transactionNumber);
     logger.printfln("Initial transaction number %05d", transactionNumber);
-
-    logger.printfln("EVSE initial crank up the allowed charging current to 16A via 'cmd AD 01 91' as a workaround.");
-    sendChargingLimit3(16, sendSequenceNumber++);  // hack to ensure full current range is available in next charging session
 
     meter.updateMeterState(2, METER_TYPE_INTERNAL);
     logger.printfln("Internal meter enabeled");
