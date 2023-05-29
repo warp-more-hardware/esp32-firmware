@@ -65,7 +65,6 @@ void EVSEV2::pre_setup()
         {"error_state", Config::Uint8(0)},
         {"lock_state", Config::Uint8(0)},
         {"dc_fault_current_state", Config::Uint8(0)},
-        {"time_since_state_change", Config::Uint32(0)},
         {"last_state_change", Config::Uint32(0)},
     });
 
@@ -119,7 +118,7 @@ void EVSEV2::pre_setup()
             Config::Bool(false), Config::Bool(false),  Config::Bool(false),Config::Bool(false),
             }, new Config{Config::Bool(false)}, 24, 24, Config::type_id<Config::ConfBool>())},
         {"charging_time", Config::Uint32(0)},
-        {"time_since_state_change", Config::Uint32(0)},
+        {"last_state_change", Config::Uint32(0)},
         {"uptime", Config::Uint32(0)}
     });
 
@@ -1143,7 +1142,7 @@ void EVSEV2::update_all_data()
      *
      */
 
-    evse_low_level_state.get("time_since_state_change")->updateUint(evse_state.get("time_since_state_change")->asUint());
+    evse_low_level_state.get("last_state_change")->updateUint(evse_state.get("last_state_change")->asUint());
     evse_low_level_state.get("uptime")->updateUint(millis());
     //evse_slot_machine();
 

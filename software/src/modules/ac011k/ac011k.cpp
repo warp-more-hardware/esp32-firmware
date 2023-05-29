@@ -913,8 +913,7 @@ void AC011K::update_evseStatus(uint8_t evseStatus) {
     
     if(last_iec61851_state != evse.evse_state.get("iec61851_state")->asUint()) {
         evse.evse_state.get("last_state_change")->updateUint(millis());
-        evse.evse_state.get("time_since_state_change")->updateUint(millis() - evse.evse_state.get("last_state_change")->asUint());
-        evse.evse_low_level_state.get("time_since_state_change")->updateUint(evse.evse_state.get("time_since_state_change")->asUint());
+        evse.evse_low_level_state.get("last_state_change")->updateUint(evse.evse_state.get("last_state_change")->asUint());
     }
 }
 
@@ -1844,8 +1843,7 @@ void AC011K::loop()
         cmd_to_process = false;
     }
 
-    evse.evse_state.get("time_since_state_change")->updateUint(millis() - evse.evse_state.get("last_state_change")->asUint());
-    evse.evse_low_level_state.get("time_since_state_change")->updateUint(evse.evse_state.get("time_since_state_change")->asUint());
+    evse.evse_low_level_state.get("last_state_change")->updateUint(evse.evse_state.get("last_state_change")->asUint());
 
     /*
      * this is probably already (and better) taken care of via the ClockAlignedDataInterval setting
