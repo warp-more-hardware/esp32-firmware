@@ -807,7 +807,7 @@ bool Users::trigger_charge_action(uint8_t user_id, uint8_t auth_type, Config::Co
     }
 
     uint8_t iec_state = get_iec_state();
-    uint32_t tscs = get_low_level_state()->get("time_since_state_change")->asUint();
+    uint32_t tscs = millis() - get_low_level_state()->get("last_state_change")->asUint();
 
     switch (iec_state) {
         case IEC_STATE_B: // State B: The user wants to start charging. If we already have a tracked charge, stop charging to allow switching to another user.
